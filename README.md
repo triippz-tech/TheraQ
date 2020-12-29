@@ -73,11 +73,11 @@ This project comes with an `app.json` file, which can be used to create an app o
 
 After setting up the project, you can init a repository and push it on GitHub. If your repository is public, you can use the following button:
 
-[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy) 
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/triippz-tech/TheraQ) 
 
 If you are in a private repository, access the following link replacing `$YOUR_REPOSITORY_LINK$` with your repository link.
 
-- `https://heroku.com/deploy?template=$YOUR_REPOSITORY_LINK$`
+- `https://heroku.com/deploy?template=https://github.com/triippz-tech/TheraQ`
 
 Remember to fill the `ALLOWED_HOSTS` with the URL of your app, the default on heroku is `appname.herokuapp.com`. Replace `appname` with your heroku app name.
 
