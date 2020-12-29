@@ -48,7 +48,7 @@ class QuestionWatchers(BaseAppModel):
 
     class Meta:
         db_table = 'question_watchers'
-        verbose_name = "Question Watchers"
+        verbose_name = "Question Watcher"
 
 
 class QuestionViews(models.Model):
@@ -63,7 +63,7 @@ class QuestionViews(models.Model):
 
     class Meta:
         db_table = 'question_views'
-        verbose_name = "Question Views"
+        verbose_name = "Question View"
 
 
 class QTag(BaseAppModel):
@@ -98,6 +98,7 @@ class QuestionQtag(BaseAppModel):
     class Meta:
         db_table = 'question_qtag'
         unique_together = (('question', 'qtag'),)
+        verbose_name = "Question QTags (Joined)"
 
 
 class Reply(BaseAppModel):
@@ -117,6 +118,7 @@ class Reply(BaseAppModel):
 
     class Meta:
         db_table = 'reply'
+        verbose_name = "Reply"
 
 
 class Comment(BaseAppModel):
@@ -142,6 +144,7 @@ class Comment(BaseAppModel):
 
     class Meta:
         db_table = 'comment'
+        verbose_name = "Comment"
 
 
 class CommentVote(BaseVoteModel):
@@ -154,6 +157,7 @@ class CommentVote(BaseVoteModel):
 
     class Meta:
         db_table = 'comment_vote'
+        verbose_name = "Comment Vote"
 
 
 class QuestionVote(BaseVoteModel):
@@ -166,6 +170,7 @@ class QuestionVote(BaseVoteModel):
 
     class Meta:
         db_table = 'question_vote'
+        verbose_name = "Question Vote"
 
 
 class ReplyVote(BaseVoteModel):
@@ -178,3 +183,4 @@ class ReplyVote(BaseVoteModel):
 
     class Meta:
         db_table = 'reply_vote'
+        verbose_name = "Reply Vote"

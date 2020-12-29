@@ -21,39 +21,56 @@ class QuestionWatchersAdmin(admin.ModelAdmin):
 
 class QuestionViewsAdmin(admin.ModelAdmin):
     list_display = ("id", "user", "question",)
-    list_filter = ("status",)
     search_fields = ("user__username", "user__email", "question__post_title", "question__slug",)
 
 
 class QTagAdmin(admin.ModelAdmin):
     list_display = ("id", "slug", "tag_name")
     list_filter = ("status",)
-    search_fields = ("user__username", "user__email", "slug", "tag_name")
+    search_fields = ("slug", "tag_name")
     ordering = ("tag_name",)
 
 
 class QuestionQtagAdmin(admin.ModelAdmin):
-    pass
+    list_display = ("id", "qtag", "question")
+    list_filter = ("status",)
+    search_fields = ("qtag__tag_name", "qtag__slug", "question__post_tile", "question__slug", "slug", "tag_name")
+    ordering = ("qtag__tag_name", "question__post_title")
 
 
 class ReplyAdmin(admin.ModelAdmin):
-    pass
+    list_display = ("id", "question", "user")
+    list_filter = ("status",)
+    search_fields = ("question__post_tile", "question__slug", "user__username", "user__email", "reply_body")
+    ordering = ("question__post_title",)
 
 
 class CommentAdmin(admin.ModelAdmin):
-    pass
+    list_display = ("id", "question", "reply", "user")
+    list_filter = ("status",)
+    search_fields = ("question__post_tile", "question__slug", "user__username", "user__email", "comment_body")
+    ordering = ("user__email",)
 
 
 class CommentVoteAdmin(admin.ModelAdmin):
-    pass
+    list_display = ("id", "vote_type", "comment", "user")
+    list_filter = ("status", "vote_type")
+    search_fields = ("user__username", "user__email", "comment__comment_body")
+    ordering = ("comment__user__email",)
 
 
 class QuestionVoteAdmin(admin.ModelAdmin):
-    pass
+    list_display = ("id", "vote_type", "question", "user")
+    list_filter = ("status", "vote_type")
+    search_fields = ("user__username", "user__email", "question__slug", "question__post_title")
+    ordering = ("question__post_title",)
 
 
 class ReplyVoteAdmin(admin.ModelAdmin):
-    pass
+    list_display = ("id", "vote_type", "reply", "user")
+    list_filter = ("status", "vote_type")
+    search_fields = ("user__username", "user__email",)
+    ordering = ("reply__question",)
 
 
 admin.site.register(Question, QuestionAdmin)

@@ -25,6 +25,7 @@ ALLOWED_HOSTS = []
 
 DJANGO_APPS = [
     "accounts",
+    "baton",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -52,7 +53,9 @@ LOCAL_APPS = [
     "questions",
 ]
 
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+BATON_APP = ["baton.autodiscover"]
+
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS + BATON_APP
 
 SWAGGER_SETTINGS = {
     'SECURITY_DEFINITIONS': {
@@ -192,3 +195,136 @@ SOCIAL_AUTH_PIPELINE = (
     "social_core.pipeline.user.user_details",
 )
 
+BATON = {
+    'SITE_HEADER': 'TheraQ Admin',
+    'SITE_TITLE': 'TheraQ Admin',
+    'INDEX_TITLE': 'Site administration',
+    'SUPPORT_HREF': 'https://github.com/triippz-tech/theraq/issues',
+    'COPYRIGHT': 'copyright © 2020 <a href="https://www.theraq.com">TheraQ</a>',  # noqa
+    'POWERED_BY': '<a href="https://www.triippztech.com">TriippzTech</a>',
+    'CONFIRM_UNSAVED_CHANGES': True,
+    'SHOW_MULTIPART_UPLOADING': True,
+    'ENABLE_IMAGES_PREVIEW': True,
+    'CHANGELIST_FILTERS_IN_MODAL': True,
+    'CHANGELIST_FILTERS_ALWAYS_OPEN': False,
+    'MENU_ALWAYS_COLLAPSED': False,
+    'MENU_TITLE': 'TheraQ Admin',
+    'GRAVATAR_DEFAULT_IMG': 'retro',
+    'MENU': (
+        {'type': 'title', 'label': 'main', 'apps': ('auth',)},
+        {
+            'type': 'app',
+            'name': 'auth',
+            'label': 'Authentication',
+            'icon': 'fa fa-lock',
+            'models': (
+                {
+                    'name': 'group',
+                    'label': 'Groups'
+                },
+            )
+        },
+        {
+            'type': 'app',
+            'name': 'accounts',
+            'label': 'User Details',
+            'icon': 'fa fa-users',
+            'models': (
+                {
+                    'name': 'user',
+                    'label': 'Users'
+                },
+                {
+                    'name': 'usersetting',
+                    'label': 'User Settings'
+                },
+                {
+                    'name': 'userprofile',
+                    'label': 'User Profiles'
+                },
+                {
+                    'name': 'usercertification',
+                    'label': 'User Certifications'
+                },
+                {
+                    'name': 'useremployer',
+                    'label': 'User Employers'
+                },
+                {
+                    'name': 'userlicense',
+                    'label': 'User Licenses'
+                },
+                {
+                    'name': 'userschool',
+                    'label': 'User Schools'
+                },
+            )
+        },
+        {
+            'type': 'app',
+            'name': 'subq',
+            'label': 'Subs',
+            'icon': 'fa fa-book',
+            'models': (
+                {
+                    'name': 'subq',
+                    'label': 'SubQ'
+                },
+                {
+                    'name': 'subqfollower',
+                    'label': 'SubQ Followers'
+                },
+            )
+        },
+        {
+            'type': 'app',
+            'name': 'questions',
+            'label': 'Questions',
+            'icon': 'fa fa-question',
+            'models': (
+                {
+                    'name': 'question',
+                    'label': 'Questions'
+                },
+                {
+                    'name': 'questionwatchers',
+                    'label': 'Question Watchers'
+                },
+                {
+                    'name': 'questionviews',
+                    'label': 'Question Views'
+                },
+                {
+                    'name': 'qtag',
+                    'label': 'Question Tags'
+                },
+                {
+                    'name': 'questionqtag',
+                    'label': 'Question QTags'
+                },
+                {
+                    'name': 'reply',
+                    'label': 'Question Reply'
+                },
+                {
+                    'name': 'comment',
+                    'label': 'Comments'
+                },
+                {
+                    'name': 'commentvote',
+                    'label': 'Comment Votes'
+                },
+                {
+                    'name': 'questionvote',
+                    'label': 'Question Votes'
+                },
+                {
+                    'name': 'replyvote',
+                    'label': 'Reply Votes'
+                },
+            )
+        },
+        {'type': 'title', 'label': 'Contents', 'apps': ('flatpages',)},
+        {'type': 'model', 'label': 'Pages', 'name': 'flatpage', 'app': 'flatpages'},
+    ),
+}

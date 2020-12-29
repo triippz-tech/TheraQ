@@ -14,7 +14,7 @@ VOTE_TYPES = Choices(
 
 class BaseAppModel(models.Model):
     created_date = models.DateField(blank=True, null=True, auto_now_add=True)
-    updated_date = models.DateField(blank=True, null=True)
+    updated_date = models.DateField(blank=True, null=True, auto_now=True)
     status = models.BooleanField(blank=True, null=True, default=False)
 
     class Meta:

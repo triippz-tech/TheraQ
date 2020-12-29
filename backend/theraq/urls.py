@@ -30,6 +30,7 @@ openapi_urls = [
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('baton/', include('baton.urls')),
     path("api/auth/", include(auth_urlpatterns)),
     path("api/openapi/", include(openapi_urls)),
     path("api/users/", include(user_urlpatterns)),
