@@ -13,7 +13,7 @@ class Question(BaseAppModel):
     slug = models.SlugField(max_length=80, unique=True)
     post_title = models.CharField(max_length=100, blank=True, null=False, db_index=True)
     post_body = models.TextField(blank=True, null=False)
-    user = models.ForeignKey(
+    author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         models.DO_NOTHING,
         blank=True,
@@ -34,6 +34,10 @@ class Question(BaseAppModel):
              update_fields=None):
         if not self.slug:
             self.slug = slugify(self.post_title)
+
+    def archive(self):
+        self.status = True
+        self.save()
 
 
 class QuestionWatchers(BaseAppModel):
@@ -120,6 +124,10 @@ class Reply(BaseAppModel):
         db_table = 'reply'
         verbose_name = "Reply"
 
+    def archive(self):
+        self.status = True
+        self.save()
+
 
 class Comment(BaseAppModel):
     comment_body = models.TextField(blank=True, null=True)
@@ -146,6 +154,10 @@ class Comment(BaseAppModel):
         db_table = 'comment'
         verbose_name = "Comment"
 
+    def archive(self):
+        self.status = True
+        self.save()
+
 
 class CommentVote(BaseVoteModel):
     comment = models.ForeignKey(
@@ -153,6 +165,13 @@ class CommentVote(BaseVoteModel):
         models.DO_NOTHING,
         blank=True,
         null=False,
+        related_name="comment_votes")
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        models.DO_NOTHING,
+        blank=True,
+        null=True,
         related_name="comment_votes")
 
     class Meta:
@@ -168,6 +187,13 @@ class QuestionVote(BaseVoteModel):
         null=False,
         related_name="question_votes")
 
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        models.DO_NOTHING,
+        blank=True,
+        null=True,
+        related_name="question_votes")
+
     class Meta:
         db_table = 'question_vote'
         verbose_name = "Question Vote"
@@ -179,7 +205,14 @@ class ReplyVote(BaseVoteModel):
         models.DO_NOTHING,
         blank=True,
         null=False,
-        related_name="reply_voets")
+        related_name="reply_votes")
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        models.DO_NOTHING,
+        blank=True,
+        null=True,
+        related_name="reply_votes")
 
     class Meta:
         db_table = 'reply_vote'

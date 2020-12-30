@@ -7,9 +7,9 @@ from questions.models import Question, QuestionWatchers, QuestionViews, Question
 
 
 class QuestionAdmin(admin.ModelAdmin):
-    list_display = ("id", "slug", "post_title", "subq", "user")
+    list_display = ("id", "slug", "post_title", "subq", "author")
     list_filter = ("status",)
-    search_fields = ("user__username", "user__email", "subq__sub_name", "subq_slug", "slug", "post_title", "post_body")
+    search_fields = ("author__username", "author__email", "subq__sub_name", "subq_slug", "slug", "post_title", "post_body")
     ordering = ("post_title",)
 
 

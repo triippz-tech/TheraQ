@@ -32,3 +32,4 @@ PyJWT
 python-twitter
 requests-oauthlib
 requests
+django-baton

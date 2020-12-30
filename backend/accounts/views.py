@@ -8,13 +8,16 @@ from django.views.decorators.http import require_POST
 from requests.exceptions import HTTPError
 from rest_framework import permissions, serializers, status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.views import APIView
+from rest_framework.viewsets import ViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
 from social_django.utils import psa
 
-from accounts.serializers import UserSerializer
+from accounts.models import UserSetting, UserProfile, UserCertification, UserEmployer, UserLicense, UserSchool
+from accounts.serializers import UserSerializer, UserSettingSerializer, UserProfileSerializer, \
+    UserCertificationSerializer, UserEmployerSerializer, UserLicenseSerializer, UserSchoolSerializer
 from accounts.utils.social.oauth import get_access_token_from_code
 
 User = get_user_model()
@@ -152,3 +155,285 @@ def exchange_token(request, backend):
                 {"errors": {nfe: "Authentication Failed"}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+
+class UserSettingViewSet(ViewSet):
+
+    def list(self, request):
+        queryset = UserSetting.objects.order_by('pk')
+        serializer = UserSettingSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def create(self, request):
+        serializer = UserSettingSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+    def retrieve(self, request, pk=None):
+        queryset = UserSetting.objects.all()
+        item = get_object_or_404(queryset, pk=pk)
+        serializer = UserSettingSerializer(item)
+        return Response(serializer.data)
+
+    def update(self, request, pk=None):
+        try:
+            item = UserSetting.objects.get(pk=pk)
+        except UserSetting.DoesNotExist:
+            return Response(status=404)
+        serializer = UserSettingSerializer(item, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+    def destroy(self, request, pk=None):
+        try:
+            item = UserSetting.objects.get(pk=pk)
+        except UserSetting.DoesNotExist:
+            return Response(status=404)
+        item.delete()
+        return Response(status=204)
+
+
+class UserProfileViewSet(ViewSet):
+
+    def list(self, request):
+        queryset = UserProfile.objects.order_by('pk')
+        serializer = UserProfileSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def create(self, request):
+        serializer = UserProfileSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+    def retrieve(self, request, pk=None):
+        queryset = UserProfile.objects.all()
+        item = get_object_or_404(queryset, pk=pk)
+        serializer = UserProfileSerializer(item)
+        return Response(serializer.data)
+
+    def update(self, request, pk=None):
+        try:
+            item = UserProfile.objects.get(pk=pk)
+        except UserProfile.DoesNotExist:
+            return Response(status=404)
+        serializer = UserProfileSerializer(item, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+    def destroy(self, request, pk=None):
+        try:
+            item = UserProfile.objects.get(pk=pk)
+        except UserProfile.DoesNotExist:
+            return Response(status=404)
+        item.delete()
+        return Response(status=204)
+
+
+class UserViewSet(ViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+    def list(self, request):
+        queryset = User.objects.order_by('pk')
+        serializer = UserSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def create(self, request):
+        serializer = UserSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+    def retrieve(self, request, pk=None):
+        queryset = User.objects.all()
+        item = get_object_or_404(queryset, pk=pk)
+        serializer = UserSerializer(item)
+        return Response(serializer.data)
+
+    def update(self, request, pk=None):
+        try:
+            item = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response(status=404)
+        serializer = UserSerializer(item, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+    def destroy(self, request, pk=None):
+        try:
+            item = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response(status=404)
+        item.delete()
+        return Response(status=204)
+
+
+class UserCertificationViewSet(ViewSet):
+
+    def list(self, request):
+        queryset = UserCertification.objects.order_by('pk')
+        serializer = UserCertificationSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def create(self, request):
+        serializer = UserCertificationSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+    def retrieve(self, request, pk=None):
+        queryset = UserCertification.objects.all()
+        item = get_object_or_404(queryset, pk=pk)
+        serializer = UserCertificationSerializer(item)
+        return Response(serializer.data)
+
+    def update(self, request, pk=None):
+        try:
+            item = UserCertification.objects.get(pk=pk)
+        except UserCertification.DoesNotExist:
+            return Response(status=404)
+        serializer = UserCertificationSerializer(item, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+    def destroy(self, request, pk=None):
+        try:
+            item = UserCertification.objects.get(pk=pk)
+        except UserCertification.DoesNotExist:
+            return Response(status=404)
+        item.delete()
+        return Response(status=204)
+
+
+class UserEmployerViewSet(ViewSet):
+
+    def list(self, request):
+        queryset = UserEmployer.objects.order_by('pk')
+        serializer = UserEmployerSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def create(self, request):
+        serializer = UserEmployerSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+    def retrieve(self, request, pk=None):
+        queryset = UserEmployer.objects.all()
+        item = get_object_or_404(queryset, pk=pk)
+        serializer = UserEmployerSerializer(item)
+        return Response(serializer.data)
+
+    def update(self, request, pk=None):
+        try:
+            item = UserEmployer.objects.get(pk=pk)
+        except UserEmployer.DoesNotExist:
+            return Response(status=404)
+        serializer = UserEmployerSerializer(item, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+    def destroy(self, request, pk=None):
+        try:
+            item = UserEmployer.objects.get(pk=pk)
+        except UserEmployer.DoesNotExist:
+            return Response(status=404)
+        item.delete()
+        return Response(status=204)
+
+
+class UserLicenseViewSet(ViewSet):
+
+    def list(self, request):
+        queryset = UserLicense.objects.order_by('pk')
+        serializer = UserLicenseSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def create(self, request):
+        serializer = UserLicenseSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+    def retrieve(self, request, pk=None):
+        queryset = UserLicense.objects.all()
+        item = get_object_or_404(queryset, pk=pk)
+        serializer = UserLicenseSerializer(item)
+        return Response(serializer.data)
+
+    def update(self, request, pk=None):
+        try:
+            item = UserLicense.objects.get(pk=pk)
+        except UserLicense.DoesNotExist:
+            return Response(status=404)
+        serializer = UserLicenseSerializer(item, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+    def destroy(self, request, pk=None):
+        try:
+            item = UserLicense.objects.get(pk=pk)
+        except UserLicense.DoesNotExist:
+            return Response(status=404)
+        item.delete()
+        return Response(status=204)
+
+
+class UserSchoolViewSet(ViewSet):
+
+    def list(self, request):
+        queryset = UserSchool.objects.order_by('pk')
+        serializer = UserSchoolSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def create(self, request):
+        serializer = UserSchoolSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+    def retrieve(self, request, pk=None):
+        queryset = UserSchool.objects.all()
+        item = get_object_or_404(queryset, pk=pk)
+        serializer = UserSchoolSerializer(item)
+        return Response(serializer.data)
+
+    def update(self, request, pk=None):
+        try:
+            item = UserSchool.objects.get(pk=pk)
+        except UserSchool.DoesNotExist:
+            return Response(status=404)
+        serializer = UserSchoolSerializer(item, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+    def destroy(self, request, pk=None):
+        try:
+            item = UserSchool.objects.get(pk=pk)
+        except UserSchool.DoesNotExist:
+            return Response(status=404)
+        item.delete()
+        return Response(status=204)
