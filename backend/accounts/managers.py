@@ -1,3 +1,4 @@
+from allauth.account.models import EmailAddress
 from django.contrib.auth.models import BaseUserManager
 import random
 import string
@@ -19,10 +20,12 @@ class UserManager(BaseUserManager):
             # if user is created with social auth
             # generate random password
             password = make_password()
-        email = self.normalize_email(email)
-        user = self.model(email=email, **extra_fields)
+        user = self.model(**extra_fields)
         user.set_password(password)
         user.save()
+        email = self.normalize_email(email)
+        EmailAddress.objects.create(email=email, user=user, verified=True, primary=True)
+
         return user
 
     def create_superuser(self, email, password, **extra_fields):

@@ -1,7 +1,7 @@
-from rest_framework.renderers import JSONRenderer
+from djangorestframework_camel_case.render import CamelCaseJSONRenderer
 
 
-class TheraQJsonRenderer(JSONRenderer):
+class TheraQJsonRenderer(CamelCaseJSONRenderer):
     def render(self, data, accepted_media_type=None, renderer_context=None):
         status_code = renderer_context['response'].status_code
         response = {

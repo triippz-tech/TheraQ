@@ -6,9 +6,9 @@ from accounts.models import User, UserSetting, UserProfile, UserSchool, UserLice
 
 
 class CustomUserAdmin(UserAdmin):
-    list_display = ("id", "email", "auth_provider", "created", "modified")
+    list_display = ("id", "email", "username", "created", "modified")
     list_filter = ("is_active", "is_staff", "groups")
-    search_fields = ("email",)
+    search_fields = ("email", "username")
     ordering = ("email",)
     filter_horizontal = (
         "groups",
@@ -16,13 +16,13 @@ class CustomUserAdmin(UserAdmin):
     )
 
     fieldsets = (
-        (None, {"fields": ("email", "password")}),
+        (None, {"fields": ("email", "username", "password")}),
         (
             _("Permissions"),
             {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")},
         ),
     )
-    add_fieldsets = ((None, {"classes": ("wide",), "fields": ("email", "password1", "password2")}),)
+    add_fieldsets = ((None, {"classes": ("wide",), "fields": ("email", "username", "password1", "password2")}),)
 
 
 class UserSettingAdmin(admin.ModelAdmin):

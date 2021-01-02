@@ -1,20 +1,18 @@
-from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.decorators import action, api_view
-from rest_framework.viewsets import ViewSet, ModelViewSet, ReadOnlyModelViewSet
-from rest_framework import filters, mixins
+from rest_framework.decorators import action
+from rest_framework.viewsets import ModelViewSet
+from rest_framework import filters
 from rest_framework.response import Response
 
 from core.mixins import MultipleFieldLookupMixin
 from core.renderers import TheraQJsonRenderer
-from core.serializers import EmptySerializer, BaseVoteSerializer
+from core.serializers import EmptySerializer
 from questions.serializers import (
     ViewQuestionSerializer,
     CreateQuestionSerializer,
     UpdateQuestionSerializer,
     QTagSerializer,
-    QuestionQtagSerializer,
     ViewReplySerializer,
     CommentVoteSerializer,
     QuestionVoteSerializer,
@@ -24,15 +22,18 @@ from questions.serializers import (
     UpdateReplySerializer,
     QuestionCommentSerializer,
     CreateQuestionCommentSerializer,
-    UpdateQuestionCommentSerializer, ReplyCommentSerializer, UpdateReplyCommentSerializer, CreateReplyCommentSerializer,
-    CreateCommentVoteSerializer, CreateQuestionVoteSerializer, CreateReplyVoteSerializer
+    UpdateQuestionCommentSerializer,
+    ReplyCommentSerializer,
+    UpdateReplyCommentSerializer,
+    CreateReplyCommentSerializer,
+    CreateCommentVoteSerializer,
+    CreateQuestionVoteSerializer,
+    CreateReplyVoteSerializer
 )
 from questions.models import (
     Question,
     QuestionWatchers,
-    QuestionViews,
     QTag,
-    QuestionQtag,
     Reply,
     Comment,
     CommentVote,
@@ -81,7 +82,7 @@ class QuestionViewSet(MultipleFieldLookupMixin, ModelViewSet):
         try:
             item = get_object_or_404(Question, slug=kwargs["slug"])
         except KeyError:
-            item = get_object_or_404(Question, slug=kwargs["pk"])
+            item = get_object_or_404(Question, pk=kwargs["pk"])
         serializer = ViewQuestionSerializer(item)
         return Response(status=200, data=serializer.data)
 
@@ -89,7 +90,7 @@ class QuestionViewSet(MultipleFieldLookupMixin, ModelViewSet):
         try:
             item = get_object_or_404(Question, slug=kwargs["slug"])
         except KeyError:
-            item = get_object_or_404(Question, slug=kwargs["pk"])
+            item = get_object_or_404(Question, pk=kwargs["pk"])
         serializer = UpdateQuestionSerializer(item, data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -100,7 +101,7 @@ class QuestionViewSet(MultipleFieldLookupMixin, ModelViewSet):
         try:
             item = get_object_or_404(Question, slug=kwargs["slug"])
         except KeyError:
-            item = get_object_or_404(Question, slug=kwargs["pk"])
+            item = get_object_or_404(Question, pk=kwargs["pk"])
         self.archive(request, item)
 
     @action(methods=['POST'], detail=True, name="Add/Update A Vote", url_name="add_watch")
@@ -199,7 +200,7 @@ class QTagViewSet(MultipleFieldLookupMixin, ModelViewSet):
         try:
             item = get_object_or_404(QTag, slug=kwargs["slug"])
         except KeyError:
-            item = get_object_or_404(QTag, slug=kwargs["pk"])
+            item = get_object_or_404(QTag, pk=kwargs["pk"])
         serializer = QTagSerializer(item)
         return Response(status=200, data=serializer.data)
 

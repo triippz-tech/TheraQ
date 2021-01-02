@@ -1,439 +1,364 @@
 import json
 
-from django.conf import settings
-from django.contrib.auth import authenticate, get_user_model, login, logout
-from django.http import JsonResponse
-from django.views.decorators.csrf import ensure_csrf_cookie
-from django.views.decorators.http import require_POST
-from requests.exceptions import HTTPError
-from rest_framework import permissions, serializers, status
-from rest_framework.decorators import api_view, permission_classes
+from django.contrib.auth import get_user_model
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import viewsets
 from rest_framework.generics import get_object_or_404
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.viewsets import ViewSet
-from rest_framework_simplejwt.tokens import RefreshToken
-from social_django.utils import psa
+from rest_framework import filters, mixins
 
-from accounts.models import UserSetting, UserProfile, UserCertification, UserEmployer, UserLicense, UserSchool
-from accounts.serializers import UserSerializer, UserSettingSerializer, UserProfileSerializer, \
-    UserCertificationSerializer, UserEmployerSerializer, UserLicenseSerializer, UserSchoolSerializer
-from accounts.utils.social.oauth import get_access_token_from_code
+
+from accounts.models import (
+    UserSetting,
+    UserProfile,
+    UserCertification,
+    UserEmployer,
+    UserLicense,
+    UserSchool
+)
+from accounts.serializers import (
+    ViewUserSettingSerializer,
+    UpdateUserSettingSerializer,
+    UpdateUserProfileSerializer,
+    ViewUserProfileSerialzer,
+    ViewUserSerializer,
+    UpdateUserSerializer,
+    ViewUserCertificationSerializer,
+    UpdateUserCertificationSerializer,
+    CreateUserCertificationSerializer,
+    UpdateUserEmployerSerializer,
+    CreateUserEmployerSerializer,
+    ViewUserEmployerSerializer,
+    ViewUserLicenseSerializer,
+    UpdateUserLicenseSerializer,
+    CreateUserLicenseSerializer,
+    UpdateUserSchoolSerializer,
+    CreateUserSchoolSerializer,
+    ViewUserSchoolSerializer
+)
+from core.renderers import TheraQJsonRenderer
 
 User = get_user_model()
 
 
-@require_POST
-def logout_view(request):
-    logout(request)
-    return JsonResponse({"detail": "Logout Successful"})
+class UserSettingViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
+    queryset = UserSetting.objects.all()
+    serializer_class = ViewUserSettingSerializer
+    renderer_classes = (TheraQJsonRenderer,)
 
+    def get_serializer_class(self):
+        if self.action == "update":
+            return UpdateUserSettingSerializer
+        return ViewUserSettingSerializer
 
-@ensure_csrf_cookie
-def login_set_cookie(request):
-    """
-    `login_view` requires that a csrf cookie be set.
-    `getCsrfToken` in `auth.js` uses this cookie to
-    make a request to `login_view`
-    """
-    return JsonResponse({"details": "CSRF cookie set"})
-
-
-@require_POST
-def login_view(request):
-    """
-    This function logs in the user and returns
-    and HttpOnly cookie, the `sessionid` cookie
-    """
-    data = json.loads(request.body)
-    email = data.get("email")
-    password = data.get("password")
-    if email is None or password is None:
-        return JsonResponse(
-            {"errors": {"__all__": "Please enter both username and password"}},
-            status=400,
-        )
-    user = authenticate(email=email, password=password)
-    if user is not None:
-        login(request, user)
-        return JsonResponse({"detail": "Success"})
-    return JsonResponse({"detail": "Invalid credentials"}, status=400)
-
-
-def get_tokens_for_user(user):
-    refresh = RefreshToken.for_user(user)
-
-    return {
-        "refresh": str(refresh),
-        "access": str(refresh.access_token),
-    }
-
-
-class SocialSerializer(serializers.Serializer):
-    """
-    Serializer which accepts an OAuth2 code.
-    """
-
-    code = serializers.CharField(allow_blank=False, trim_whitespace=True,)
-
-
-@api_view(http_method_names=["POST"])
-@permission_classes([AllowAny])
-@psa()
-def exchange_token(request, backend):
-    """
-    Exchange an OAuth2 access token for one for this site.
-    This simply defers the entire OAuth2 process to the front end.
-    The front end becomes responsible for handling the entirety of the
-    OAuth2 process; we just step in at the end and use the access token
-    to populate some user identity.
-    The URL at which this view lives must include a backend field, like:
-        url(API_ROOT + r'social/(?P<backend>[^/]+)/$', exchange_token),
-    Using that example, you could call this endpoint using i.e.
-        POST API_ROOT + 'social/facebook/'
-        POST API_ROOT + 'social/google-oauth2/'
-    Note that those endpoint examples are verbatim according to the
-    PSA backends which we configured in settings.py. If you wish to enable
-    other social authentication backends, they'll get their own endpoints
-    automatically according to PSA.
-    ## Request format
-    Requests must include the following field
-    - `access_token`: The OAuth2 access token provided by the provider
-    """
-
-    serializer = SocialSerializer(data=request.data)
-
-    if serializer.is_valid(raise_exception=True):
-
-        code = serializer.validated_data["code"]
-        access_token = get_access_token_from_code(backend, code)
-        # set up non-field errors key
-        # http://www.django-rest-framework.org/api-guide/exceptions/
-        # #exception-handling-in-rest-framework-views
+    def retrieve(self, request, *args, **kwargs):
         try:
-            nfe = settings.NON_FIELD_ERRORS_KEY
-        except AttributeError:
-            nfe = "non_field_errors"
+            item = get_object_or_404(UserSetting, slug=kwargs["slug"])
+        except KeyError:
+            item = get_object_or_404(UserSetting, pk=kwargs["pk"])
+        serializer = ViewUserSettingSerializer(item)
+        return Response(status=200, data=serializer.data)
 
+    def update(self, request, *args, **kwargs):
         try:
-            # this line, plus the psa decorator above, are all that's
-            # necessary to
-            # get and populate a user object for any properly
-            # enabled/configured backend
-            # which python-social-auth can handle.
-            user = request.backend.do_auth(access_token)
-        except HTTPError as e:
-            # An HTTPError bubbled up from the request to the social
-            # auth provider.
-            # This happens, at least in Google's case, every time you
-            # send a malformed
-            # or incorrect access key.
-            return Response(
-                {"errors": {"token": "Invalid token", "detail": str(e)}},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if user:
-            if user.is_active:
-                login(request, user)
-                return JsonResponse({"detail": "Success"})
-            else:
-                # user is not active; at some point they deleted their account,
-                # or were banned by a superuser. They can't just log
-                # in with their
-                # normal credentials anymore, so they can't log in with social
-                # credentials either.
-                return Response(
-                    {"errors": {nfe: "This user account is inactive"}},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        else:
-            # Unfortunately, PSA swallows any information the backend provider
-            # generated as to why specifically the authentication failed;
-            # this makes it tough to debug except by examining the server logs.
-            return Response(
-                {"errors": {nfe: "Authentication Failed"}},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-
-class UserSettingViewSet(ViewSet):
-
-    def list(self, request):
-        queryset = UserSetting.objects.order_by('pk')
-        serializer = UserSettingSerializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def create(self, request):
-        serializer = UserSettingSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400)
-
-    def retrieve(self, request, pk=None):
-        queryset = UserSetting.objects.all()
-        item = get_object_or_404(queryset, pk=pk)
-        serializer = UserSettingSerializer(item)
-        return Response(serializer.data)
-
-    def update(self, request, pk=None):
-        try:
-            item = UserSetting.objects.get(pk=pk)
-        except UserSetting.DoesNotExist:
-            return Response(status=404)
-        serializer = UserSettingSerializer(item, data=request.data)
+            item = get_object_or_404(UserSetting, slug=kwargs["slug"])
+        except KeyError:
+            item = get_object_or_404(UserSetting, pk=kwargs["pk"])
+        if item.user.pk != request.user.pk and not request.user.is_superuser:
+            return Response(status=401)
+        serializer = UpdateUserSettingSerializer(item, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=400)
 
-    def destroy(self, request, pk=None):
+
+class UserProfileViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
+    queryset = UserProfile.objects.all()
+    serializer_class = ViewUserProfileSerialzer
+    renderer_classes = (TheraQJsonRenderer,)
+
+    def get_serializer_class(self):
+        if self.action == "update":
+            return UpdateUserProfileSerializer
+        return ViewUserProfileSerialzer
+
+    def retrieve(self, request, *args, **kwargs):
         try:
-            item = UserSetting.objects.get(pk=pk)
-        except UserSetting.DoesNotExist:
-            return Response(status=404)
-        item.delete()
-        return Response(status=204)
+            item = get_object_or_404(UserProfile, user__username=kwargs["username"])
+        except KeyError:
+            item = get_object_or_404(UserProfile, pk=kwargs["pk"])
+        serializer = ViewUserProfileSerialzer(item)
+        return Response(status=200, data=serializer.data)
 
-
-class UserProfileViewSet(ViewSet):
-
-    def list(self, request):
-        queryset = UserProfile.objects.order_by('pk')
-        serializer = UserProfileSerializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def create(self, request):
-        serializer = UserProfileSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400)
-
-    def retrieve(self, request, pk=None):
-        queryset = UserProfile.objects.all()
-        item = get_object_or_404(queryset, pk=pk)
-        serializer = UserProfileSerializer(item)
-        return Response(serializer.data)
-
-    def update(self, request, pk=None):
+    def update(self, request, *args, **kwargs):
         try:
-            item = UserProfile.objects.get(pk=pk)
-        except UserProfile.DoesNotExist:
-            return Response(status=404)
-        serializer = UserProfileSerializer(item, data=request.data)
+            item = get_object_or_404(UserSetting, user__username=kwargs["username"])
+        except KeyError:
+            item = get_object_or_404(UserSetting, pk=kwargs["pk"])
+        serializer = UpdateUserProfileSerializer(item, data=request.data)
+        if item.user.pk != request.user.pk and not request.user.is_superuser:
+            return Response(status=401)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=400)
 
-    def destroy(self, request, pk=None):
-        try:
-            item = UserProfile.objects.get(pk=pk)
-        except UserProfile.DoesNotExist:
-            return Response(status=404)
-        item.delete()
-        return Response(status=204)
 
-
-class UserViewSet(ViewSet):
+class UserViewSet(mixins.ListModelMixin,
+                  mixins.RetrieveModelMixin,
+                  mixins.UpdateModelMixin,
+                  viewsets.GenericViewSet):
     queryset = User.objects.all()
-    serializer_class = UserSerializer
+    serializer_class = ViewUserSerializer
+    renderer_classes = (TheraQJsonRenderer,)
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ["id", "is_staff", "is_superuser", "is_active", "is_verified"]
+    search_fields = ["email", "username", "user_certifications__certificate_program",
+                     "user_certifications__institution_name", "user_employers__employer_name",
+                     "users_employer__position",  "user_licenses__issuing_authority", "user_licenses__license_type",
+                     "user_schools__school_name", "user_schools__program"]
 
-    def list(self, request):
-        queryset = User.objects.order_by('pk')
-        serializer = UserSerializer(queryset, many=True)
+    def get_serializer_class(self):
+        if self.action == "update" or self.action == "partial_update":
+            return UpdateUserSerializer
+        return ViewUserSettingSerializer
+
+    def list(self, request, *args, **kwargs):
+        queryset = User.objects.order_by('username')
+        serializer = ViewUserSerializer(queryset, many=True, exclude=(
+            "user_profile",
+            "user_settings",
+            "user_certifications",
+            "user_employers",
+            "user_licenses",
+            "user_schools"
+        ))
         return Response(serializer.data)
 
-    def create(self, request):
-        serializer = UserSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400)
-
-    def retrieve(self, request, pk=None):
-        queryset = User.objects.all()
-        item = get_object_or_404(queryset, pk=pk)
-        serializer = UserSerializer(item)
-        return Response(serializer.data)
-
-    def update(self, request, pk=None):
+    def retrieve(self, request, *args, **kwargs):
         try:
-            item = User.objects.get(pk=pk)
-        except User.DoesNotExist:
-            return Response(status=404)
-        serializer = UserSerializer(item, data=request.data)
+            item = get_object_or_404(User, username=kwargs["username"])
+        except KeyError:
+            item = get_object_or_404(User, pk=kwargs["pk"])
+        serializer = ViewUserSerializer(item)
+        return Response(serializer.data)
+
+    def update(self, request, *args, **kwargs):
+        try:
+            item = get_object_or_404(User, username=kwargs["username"])
+        except KeyError:
+            item = get_object_or_404(User, pk=kwargs["pk"])
+        if item.user.pk != request.user.pk and not request.user.is_superuser:
+            return Response(status=401)
+        serializer = UpdateUserSerializer(item, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=400)
 
-    def destroy(self, request, pk=None):
-        try:
-            item = User.objects.get(pk=pk)
-        except User.DoesNotExist:
-            return Response(status=404)
-        item.delete()
-        return Response(status=204)
 
+class UserCertificationViewSet(viewsets.ModelViewSet):
+    queryset = UserCertification.objects.all()
+    serializer_class = ViewUserCertificationSerializer
+    renderer_classes = (TheraQJsonRenderer,)
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ["id", "status", "completion_date"]
+    search_fields = ["user__email", "user__username", "certificate_program",
+                     "institution_name", "certificate_number"]
 
-class UserCertificationViewSet(ViewSet):
+    def get_serializer_class(self):
+        if self.action == "update" or self.action == "partial_update":
+            return UpdateUserCertificationSerializer
+        if self.action == "create":
+            return CreateUserCertificationSerializer
+        return ViewUserCertificationSerializer
 
-    def list(self, request):
-        queryset = UserCertification.objects.order_by('pk')
-        serializer = UserCertificationSerializer(queryset, many=True)
+    def list(self, request, *args, **kwargs):
+        queryset = UserCertification.objects.order_by('certificate_program')
+        serializer = ViewUserCertificationSerializer(queryset, many=True)
         return Response(serializer.data)
 
-    def create(self, request):
-        serializer = UserCertificationSerializer(data=request.data)
+    def create(self, request, *args, **kwargs):
+        serializer = CreateUserCertificationSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(user=request.user)
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
 
-    def retrieve(self, request, pk=None):
+    # TODO - Won't be efficient, might need to change query
+    def retrieve(self, request, *args, **kwargs):
         queryset = UserCertification.objects.all()
-        item = get_object_or_404(queryset, pk=pk)
-        serializer = UserCertificationSerializer(item)
+        item = get_object_or_404(queryset, pk=kwargs["pk"])
+        serializer = ViewUserCertificationSerializer(item)
         return Response(serializer.data)
 
-    def update(self, request, pk=None):
-        try:
-            item = UserCertification.objects.get(pk=pk)
-        except UserCertification.DoesNotExist:
-            return Response(status=404)
-        serializer = UserCertificationSerializer(item, data=request.data)
+    def update(self, request, *args, **kwargs):
+        item = get_object_or_404(UserCertification, pk=kwargs["pk"])
+        if item.user.pk != request.user.pk and not request.user.is_superuser:
+            return Response(status=401)
+        serializer = UpdateUserCertificationSerializer(item, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=400)
 
-    def destroy(self, request, pk=None):
-        try:
-            item = UserCertification.objects.get(pk=pk)
-        except UserCertification.DoesNotExist:
-            return Response(status=404)
-        item.delete()
+    def destroy(self, request, *args, **kwargs):
+        item = get_object_or_404(UserCertification, pk=kwargs["pk"])
+        if item.user.pk != request.user.pk and not request.user.is_superuser:
+            return Response(status=401)
+        item.archive()
         return Response(status=204)
 
 
-class UserEmployerViewSet(ViewSet):
+class UserEmployerViewSet(viewsets.ModelViewSet):
+    queryset = UserEmployer.objects.all()
+    serializer_class = ViewUserEmployerSerializer
+    renderer_classes = (TheraQJsonRenderer,)
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ["id", "status", "start_date", "end_date", "current_position"]
+    search_fields = ["user__email", "user__username", "employer_name", "position", "description"]
 
-    def list(self, request):
-        queryset = UserEmployer.objects.order_by('pk')
-        serializer = UserEmployerSerializer(queryset, many=True)
+    def get_serializer_class(self):
+        if self.action == "update" or self.action == "partial_update":
+            return UpdateUserEmployerSerializer
+        if self.action == "create":
+            return CreateUserEmployerSerializer
+        return ViewUserEmployerSerializer
+
+    def list(self, request, *args, **kwargs):
+        queryset = UserEmployer.objects.order_by('employer_name')
+        serializer = ViewUserEmployerSerializer(queryset, many=True)
         return Response(serializer.data)
 
-    def create(self, request):
-        serializer = UserEmployerSerializer(data=request.data)
+    def create(self, request, *args, **kwargs):
+        serializer = CreateUserEmployerSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(user=request.user)
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
 
-    def retrieve(self, request, pk=None):
+    def retrieve(self, request, *args, **kwargs):
         queryset = UserEmployer.objects.all()
-        item = get_object_or_404(queryset, pk=pk)
-        serializer = UserEmployerSerializer(item)
+        item = get_object_or_404(queryset, pk=kwargs["pk"])
+        serializer = ViewUserEmployerSerializer(item)
         return Response(serializer.data)
 
-    def update(self, request, pk=None):
-        try:
-            item = UserEmployer.objects.get(pk=pk)
-        except UserEmployer.DoesNotExist:
-            return Response(status=404)
-        serializer = UserEmployerSerializer(item, data=request.data)
+    def update(self, request, *args, **kwargs):
+        item = get_object_or_404(UserEmployer, pk=kwargs["pk"])
+        if item.user.pk != request.user.pk and not request.user.is_superuser:
+            return Response(status=401)
+        serializer = UpdateUserEmployerSerializer(item, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=400)
 
-    def destroy(self, request, pk=None):
-        try:
-            item = UserEmployer.objects.get(pk=pk)
-        except UserEmployer.DoesNotExist:
-            return Response(status=404)
-        item.delete()
+    def destroy(self, request, *args, **kwargs):
+        item = get_object_or_404(UserEmployer, pk=kwargs["pk"])
+        if item.user.pk != request.user.pk and not request.user.is_superuser:
+            return Response(status=401)
+        item.archive()
         return Response(status=204)
 
 
-class UserLicenseViewSet(ViewSet):
+class UserLicenseViewSet(viewsets.ModelViewSet):
+    queryset = UserLicense.objects.all()
+    serializer_class = ViewUserLicenseSerializer
+    renderer_classes = (TheraQJsonRenderer,)
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ["id", "status", "completion_date", "expiration_date"]
+    search_fields = ["user__email", "user__username", "issuing_authority", "license_type", "license_number"]
 
-    def list(self, request):
-        queryset = UserLicense.objects.order_by('pk')
-        serializer = UserLicenseSerializer(queryset, many=True)
+    def get_serializer_class(self):
+        if self.action == "update" or self.action == "partial_update":
+            return UpdateUserLicenseSerializer
+        if self.action == "create":
+            return CreateUserLicenseSerializer
+        return ViewUserLicenseSerializer
+
+    def list(self, request, *args, **kwargs):
+        queryset = UserLicense.objects.order_by('license_type')
+        serializer = ViewUserLicenseSerializer(queryset, many=True)
         return Response(serializer.data)
 
-    def create(self, request):
-        serializer = UserLicenseSerializer(data=request.data)
+    def create(self, request, *args, **kwargs):
+        serializer = CreateUserLicenseSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(user=request.user)
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
 
-    def retrieve(self, request, pk=None):
+    def retrieve(self, request, *args, **kwargs):
         queryset = UserLicense.objects.all()
-        item = get_object_or_404(queryset, pk=pk)
-        serializer = UserLicenseSerializer(item)
+        item = get_object_or_404(queryset, pk=kwargs["pk"])
+        serializer = ViewUserLicenseSerializer(item)
         return Response(serializer.data)
 
-    def update(self, request, pk=None):
-        try:
-            item = UserLicense.objects.get(pk=pk)
-        except UserLicense.DoesNotExist:
-            return Response(status=404)
-        serializer = UserLicenseSerializer(item, data=request.data)
+    def update(self, request, *args, **kwargs):
+        item = get_object_or_404(UserLicense, pk=kwargs["pk"])
+        if item.user.pk != request.user.pk and not request.user.is_superuser:
+            return Response(status=401)
+        serializer = UpdateUserLicenseSerializer(item, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=400)
 
-    def destroy(self, request, pk=None):
-        try:
-            item = UserLicense.objects.get(pk=pk)
-        except UserLicense.DoesNotExist:
-            return Response(status=404)
-        item.delete()
+    def destroy(self, request, *args, **kwargs):
+        item = get_object_or_404(UserLicense, pk=kwargs["pk"])
+        if item.user.pk != request.user.pk and not request.user.is_superuser:
+            return Response(status=401)
+        item.archive()
         return Response(status=204)
 
 
-class UserSchoolViewSet(ViewSet):
+class UserSchoolViewSet(viewsets.ModelViewSet):
+    queryset = UserSchool.objects.all()
+    serializer_class = ViewUserSchoolSerializer
+    renderer_classes = (TheraQJsonRenderer,)
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ["id", "status", "start_date", "graduate_date", "degree_type", "current_student"]
+    search_fields = ["user__email", "user__username", "school_name", "program"]
 
-    def list(self, request):
-        queryset = UserSchool.objects.order_by('pk')
-        serializer = UserSchoolSerializer(queryset, many=True)
+    def get_serializer_class(self):
+        if self.action == "update" or self.action == "partial_update":
+            return UpdateUserSchoolSerializer
+        if self.action == "create":
+            return CreateUserSchoolSerializer
+        return ViewUserSchoolSerializer
+
+    def list(self, request, *args, **kwargs):
+        queryset = UserSchool.objects.order_by('school_name')
+        serializer = ViewUserSchoolSerializer(queryset, many=True)
         return Response(serializer.data)
 
-    def create(self, request):
-        serializer = UserSchoolSerializer(data=request.data)
+    def create(self, request, *args, **kwargs):
+        serializer = CreateUserSchoolSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(user=request.user)
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
 
-    def retrieve(self, request, pk=None):
+    def retrieve(self, request, *args, **kwargs):
         queryset = UserSchool.objects.all()
-        item = get_object_or_404(queryset, pk=pk)
-        serializer = UserSchoolSerializer(item)
+        item = get_object_or_404(queryset, pk=kwargs["pk"])
+        serializer = ViewUserSchoolSerializer(item)
         return Response(serializer.data)
 
-    def update(self, request, pk=None):
-        try:
-            item = UserSchool.objects.get(pk=pk)
-        except UserSchool.DoesNotExist:
-            return Response(status=404)
-        serializer = UserSchoolSerializer(item, data=request.data)
+    def update(self, request, *args, **kwargs):
+        item = get_object_or_404(UserSchool, pk=kwargs["pk"])
+        if item.user.pk != request.user.pk and not request.user.is_superuser:
+            return Response(status=401)
+        serializer = UpdateUserSchoolSerializer(item, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=400)
 
-    def destroy(self, request, pk=None):
-        try:
-            item = UserSchool.objects.get(pk=pk)
-        except UserSchool.DoesNotExist:
-            return Response(status=404)
-        item.delete()
+    def destroy(self, request, *args, **kwargs):
+        item = get_object_or_404(UserSchool, pk=kwargs["pk"])
+        if item.user.pk != request.user.pk and not request.user.is_superuser:
+            return Response(status=401)
+        item.archive()
         return Response(status=204)

@@ -4,7 +4,7 @@ from accounts.serializers import UserSerializer, IdUserSerializer
 from core.serializers import DynamicFieldsModelSerializer, BaseVoteSerializer
 from questions.models import Question, QuestionWatchers, QuestionViews, QTag, QuestionQtag, Reply, Comment, CommentVote, \
     QuestionVote, ReplyVote
-from subq.serializers import SubQSerializer, IdSubQSerializer
+from subq.serializers import ViewSubQSerializer, IdSubQSerializer
 
 
 ##########################
@@ -31,7 +31,7 @@ class CreateCommentVoteSerializer(BaseVoteSerializer):
 
 class CommentVoteSerializer(BaseVoteSerializer):
     user = UserSerializer(
-        exclude=("email", "username", "is_staff", "is_superuser"),
+        exclude=("username", "is_staff", "is_superuser"),
         read_only=False,
         required=False,
         allow_null=True)
@@ -58,7 +58,7 @@ class CreateQuestionVoteSerializer(BaseVoteSerializer):
 
 class QuestionVoteSerializer(BaseVoteSerializer):
     user = UserSerializer(
-        exclude=("email", "username", "is_staff", "is_superuser"),
+        exclude=("username", "is_staff", "is_superuser"),
         read_only=False,
         required=False,
         allow_null=True)
@@ -85,7 +85,7 @@ class CreateReplyVoteSerializer(BaseVoteSerializer):
 
 class ReplyVoteSerializer(BaseVoteSerializer):
     user = UserSerializer(
-        exclude=("email", "username", "is_staff", "is_superuser"),
+        exclude=("username", "is_staff", "is_superuser"),
         read_only=False,
         required=False,
         allow_null=True)
@@ -126,7 +126,6 @@ class UpdateQuestionCommentSerializer(serializers.ModelSerializer):
 
 class QuestionCommentSerializer(serializers.ModelSerializer):
     user = UserSerializer(
-        exclude=('email',),
         read_only=False,
         required=False,
         allow_null=True)
@@ -173,7 +172,6 @@ class UpdateReplyCommentSerializer(serializers.ModelSerializer):
 
 class ReplyCommentSerializer(serializers.ModelSerializer):
     user = UserSerializer(
-        exclude=('email',),
         read_only=False,
         required=False,
         allow_null=True)
@@ -200,7 +198,6 @@ class ReplyCommentSerializer(serializers.ModelSerializer):
 
 class QuestionReplySerializer(serializers.ModelSerializer):
     user = UserSerializer(
-        exclude=('email',),
         read_only=False,
         required=False,
         allow_null=True)
@@ -227,7 +224,7 @@ class QuestionReplySerializer(serializers.ModelSerializer):
 
 class QuestionWatchersSerializer(DynamicFieldsModelSerializer):
     user = UserSerializer(
-        exclude=("email", "username", "is_staff", "is_superuser"),
+        exclude=("username", "is_staff", "is_superuser"),
         read_only=False,
         required=False,
         allow_null=True)
@@ -247,7 +244,7 @@ class QuestionWatchersSerializer(DynamicFieldsModelSerializer):
 
 class QuestionViewsSerializer(DynamicFieldsModelSerializer):
     user = UserSerializer(
-        exclude=("email", "username", "is_staff", "is_superuser"),
+        exclude=("username", "is_staff", "is_superuser"),
         read_only=False,
         required=False,
         allow_null=True)
@@ -386,7 +383,7 @@ class ViewQuestionSerializer(serializers.ModelSerializer):
         read_only=False,
         required=False,
         allow_null=True)
-    subq = SubQSerializer(
+    subq = ViewSubQSerializer(
         exclude=('owner', 'description', 'slug'),
         read_only=False,
         required=False,
@@ -413,6 +410,8 @@ class ViewQuestionSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
         many=True)
+    view_count = serializers.SerializerMethodField(read_only=True)
+    votes = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Question
@@ -426,3 +425,9 @@ class ViewQuestionSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'url': {'lookup_field': 'slug'}
         }
+
+    def get_view_count(self, question):
+        return question.question_views.count()
+
+    def get_votes(self, question):
+        return QuestionVote.objects.filter(question=question, vote_type="UP_VOTE").count()

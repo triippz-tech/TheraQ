@@ -30,10 +30,10 @@ class Question(BaseAppModel):
         db_table = 'question'
         verbose_name = "Question"
 
-    def save(self, force_insert=False, force_update=False, using=None,
-             update_fields=None):
+    def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.post_title)
+        return super(Question, self).save(*args, **kwargs)
 
     def archive(self):
         self.status = True
@@ -86,6 +86,11 @@ class QTag(BaseAppModel):
     class Meta:
         db_table = 'q_tag'
         verbose_name = "Question Tag"
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.tag_name)
+        return super(QTag, self).save(*args, **kwargs)
 
 
 class QuestionQtag(BaseAppModel):

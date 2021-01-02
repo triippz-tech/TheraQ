@@ -2,15 +2,19 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase  # noqa
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.test import APITestCase, RequestsClient
 
 User = get_user_model()
+client = RequestsClient()
+response = client.get('http://localhost/homepage/')
+assert response.status_code == 200
+csrftoken = response.cookies['csrftoken']
 
 
 class UsersManagersTests(TestCase):
     def test_create_user(self):
-        user = User.objects.create_user(email="normal@user.com", password="foo")
-        self.assertEqual(user.email, "normal@user.com")
+        user = User.objects.create_user(username="jdoe", password="foo")
+        self.assertEqual(user.username, "normal@user.com")
         self.assertTrue(user.is_active)
         self.assertFalse(user.is_staff)
         self.assertFalse(user.is_superuser)
@@ -23,14 +27,14 @@ class UsersManagersTests(TestCase):
         with self.assertRaises(TypeError):
             User.objects.create_user()
         with self.assertRaises(ValueError):
-            User.objects.create_user(email="")
+            User.objects.create_user(username="")
         with self.assertRaises(ValueError):
-            User.objects.create_user(email="", password="foo")
+            User.objects.create_user(username="", password="foo")
 
     def test_create_superuser(self):
         User = get_user_model()
-        admin_user = User.objects.create_superuser("super@user.com", "foo")
-        self.assertEqual(admin_user.email, "super@user.com")
+        admin_user = User.objects.create_superuser("super", "foo")
+        self.assertEqual(admin_user.username, "super")
         self.assertTrue(admin_user.is_active)
         self.assertTrue(admin_user.is_staff)
         self.assertTrue(admin_user.is_superuser)
@@ -42,27 +46,58 @@ class UsersManagersTests(TestCase):
             pass
         with self.assertRaises(ValueError):
             User.objects.create_superuser(
-                email="super@user.com", password="foo", is_superuser=False,
+                username="super", password="foo", is_superuser=False,
             )
 
 
-class AccountsTests(APITestCase):
-    def test_obtain_jwt(self):
-
-        url = reverse("api-jwt-auth")
-
-        u = User.objects.create_user(email="user@foo.com", password="password")
-        u.is_active = False
-        u.save()
-
-        resp = self.client.post(
-            url, {"email": "user@foo.com", "password": "password"}, format="json",
+class TestUserViewSet(APITestCase):
+    def setUp(self):
+        self.user1 = User.objects.create_user(
+            username="john1",
+            password="john1"
         )
-        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
-        u.is_active = True
-        u.save()
-        resp = self.client.post(
-            url, {"email": "user@foo.com", "password": "password"}, format="json",
+        self.user2 = User.objects.create_user(
+            username="john2",
+            password="john2"
         )
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertTrue("access" in resp.data)
+        self.user3 = User.objects.create_user(
+            username="jane1",
+            password="jane1"
+        )
+        self.user4 = User.objects.create_user(
+            username="jane2",
+            password="jane2"
+        )
+
+    def test_get_list(self):
+        pass
+
+    def retrieve_user(self):
+        pass
+
+    def update_user(self):
+        pass
+
+
+class TestUserSettingViewSet(APITestCase):
+    pass
+
+
+class TestUserProfileViewSet(APITestCase):
+    pass
+
+
+class TestUserCertificationViewSet(APITestCase):
+    pass
+
+
+class TestUserEmployerViewSet(APITestCase):
+    pass
+
+
+class TestUserLicenseViewSet(APITestCase):
+    pass
+
+
+class TestUserSchoolViewSet(APITestCase):
+    pass

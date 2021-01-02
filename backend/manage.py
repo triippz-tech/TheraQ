@@ -5,7 +5,6 @@ import sys
 
 from decouple import config
 
-
 if __name__ == "__main__":
     settings_module = config("DJANGO_SETTINGS_MODULE", default=None)
 

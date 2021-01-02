@@ -3,6 +3,7 @@ import datetime
 import os
 
 from decouple import config  # noqa
+from . import blacklist_usernames
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -32,13 +33,22 @@ DJANGO_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sites",
 ]
 
 THIRD_PARTY_APPS = [
     "corsheaders",
     "rest_framework",
-    # "rest_framework_simplejwt.token_blacklist",
-    "social_django",
+    "rest_framework.authtoken",
+    "dj_rest_auth",
+    "allauth",
+    "allauth.account",
+    "dj_rest_auth.registration",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.facebook",
+    "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.twitter",
+    "allauth.socialaccount.providers.linkedin",
     "drf_yasg",
     "django_js_reverse",
     "webpack_loader",
@@ -47,7 +57,6 @@ THIRD_PARTY_APPS = [
 ]
 
 LOCAL_APPS = [
-    "social_auth",
     "core",
     "subq",
     "questions",
@@ -64,14 +73,13 @@ SWAGGER_SETTINGS = {
             'name': 'Authorization',
             'in': 'header'
         }
-    }
+    },
 }
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "social_django.middleware.SocialAuthExceptionMiddleware",
     'corsheaders.middleware.CorsMiddleware',
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -142,64 +150,111 @@ CELERY_TIMEZONE = TIME_ZONE
 SENTRY_DSN = config("SENTRY_DSN", default="")
 COMMIT_SHA = config("HEROKU_SLUG_COMMIT", default="")
 
+# DRF
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
     'PAGE_SIZE': 10,
     'NON_FIELD_ERRORS_KEY': 'error',
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        # 'rest_framework_simplejwt.authentication.JWTAuthentication',
-        "rest_framework.authentication.SessionAuthentication",
+        # 'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+        'dj_rest_auth.jwt_auth.JWTCookieAuthentication',
     ),
     'DEFAULT_RENDERER_CLASSES': [
-        'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.BrowsableAPIRenderer',
-        'core.renderers.TheraQJsonRenderer',
+        'djangorestframework_camel_case.render.CamelCaseJSONRenderer',
+        'djangorestframework_camel_case.render.CamelCaseBrowsableAPIRenderer',
+        # 'core.renderers.TheraQJsonRenderer',
     ],
+    'DEFAULT_PARSER_CLASSES': (
+        # If you use MultiPartFormParser or FormParser, we also have a camel case version
+        'djangorestframework_camel_case.parser.CamelCaseFormParser',
+        'djangorestframework_camel_case.parser.CamelCaseMultiPartParser',
+        'djangorestframework_camel_case.parser.CamelCaseJSONParser',
+        # Any other parsers
+    ),
 }
 
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': datetime.timedelta(minutes=1),
-    'REFRESH_TOKEN_LIFETIME': datetime.timedelta(days=1),
-}
+REST_USE_JWT = True
+JWT_AUTH_COOKIE = "theraq-authentication"
 
-SOCIAL_AUTH_POSTGRES_JSONFIELD = True
+# Simple JWT
+# SIMPLE_JWT = {
+#     'ACCESS_TOKEN_LIFETIME': datetime.timedelta(minutes=1),
+#     'REFRESH_TOKEN_LIFETIME': datetime.timedelta(days=1),
+#     'BLACKLIST_AFTER_ROTATION': True,
+#     'UPDATE_LAST_LOGIN': False,
+# }
 
+# https://django-allauth.readthedocs.io/en/latest/configuration.html
 AUTHENTICATION_BACKENDS = (
-    "social_core.backends.twitter.TwitterOAuth",
-    "social_core.backends.google.GoogleOAuth2",
-    "social_core.backends.facebook.FacebookOAuth2",
     "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
 )
 
-# this is needed to get a user's email from Facebook. See:
-# https://stackoverflow.com/questions/32024327/facebook-doesnt-return-email-python-social-auth
-# https://stackoverflow.com/a/32129851/6084948
-# https://developers.facebook.com/docs/facebook-login/manually-build-a-login-flow/
-SOCIAL_AUTH_FACEBOOK_PROFILE_EXTRA_PARAMS = {
-    "fields": "id,name,email",
+SOCIALACCOUNT_PROVIDERS = {
+    'facebook': {
+        'METHOD': 'oauth2',
+        'SDK_URL': '//connect.facebook.net/{locale}/sdk.js',
+        'SCOPE': ['email', 'public_profile'],
+        'AUTH_PARAMS': {'auth_type': 'reauthenticate'},
+        'INIT_PARAMS': {'cookie': True},
+        'FIELDS': [
+            'id',
+            'first_name',
+            'last_name',
+            'middle_name',
+            'name',
+            'name_format',
+            'picture',
+            'short_name'
+        ],
+        'EXCHANGE_TOKEN': True,
+        'LOCALE_FUNC': 'path.to.callable',
+        'VERIFIED_EMAIL': False,
+        'VERSION': 'v7.0',
+    },
+    'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        }
+    },
+    'linkedin': {
+        'SCOPE': [
+            'r_basicprofile',
+            'r_emailaddress'
+        ],
+        'PROFILE_FIELDS': [
+            'id',
+            'first-name',
+            'last-name',
+            'email-address',
+            'picture-url',
+            'public-profile-url',
+        ]
+    }
+
 }
 
-# Social Auth Keys
-SOCIAL_AUTH_TWITTER_KEY = config("SOCIAL_AUTH_TWITTER_KEY")
-SOCIAL_AUTH_TWITTER_SECRET = config("SOCIAL_AUTH_TWITTER_SECRET")
-SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = config("SOCIAL_AUTH_GOOGLE_OAUTH2_KEY")
-SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = config("SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET")
-SOCIAL_AUTH_FACEBOOK_KEY = config("SOCIAL_AUTH_FACEBOOK_KEY")
-SOCIAL_AUTH_FACEBOOK_SECRET = config("SOCIAL_AUTH_FACEBOOK_SECRET")
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_SIGNUP_PASSWORD_ENTER_TWICE = False
+ACCOUNT_AUTHENTICATION_METHOD = "username"
+ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 3
+ACCOUNT_EMAIL_VERIFICATION = True  # Users must verify email to log in
+ACCOUNT_LOGIN_ATTEMPTS_LIMIT = 5
+ACCOUNT_LOGIN_ATTEMPTS_TIMEOUT = 300
+UNIQUE_EMAIL = True
+ACCOUNT_USERNAME_BLACKLIST = blacklist_usernames.usernames
+SOCIALACCOUNT_EMAIL_REQUIRED = True
+REST_SESSION_LOGIN = True
 
-SOCIAL_AUTH_PIPELINE = (
-    "social_core.pipeline.social_auth.social_details",
-    "social_core.pipeline.social_auth.social_uid",
-    "social_core.pipeline.social_auth.auth_allowed",
-    "social_core.pipeline.social_auth.social_user",
-    # 'social_core.pipeline.user.get_username',
-    "social_core.pipeline.social_auth.associate_by_email",
-    "social_core.pipeline.user.create_user",
-    "social_core.pipeline.social_auth.associate_user",
-    "social_core.pipeline.social_auth.load_extra_data",
-    "social_core.pipeline.user.user_details",
-)
+REST_AUTH_REGISTER_SERIALIZERS = {
+    'REGISTER_SERIALIZER': 'accounts.serializers.CustomRegisterSerializer',
+}
 
 BATON = {
     'SITE_HEADER': 'TheraQ Admin',

@@ -55,8 +55,10 @@ class UserProfile(BaseAppModel):
 
 
 class User(AbstractBaseUser, PermissionsMixin, IndexedTimeStampedModel):
-    username = models.CharField(max_length=255, unique=True, db_index=True)
-    email = models.EmailField(max_length=255, unique=True, db_index=True)
+    username = models.CharField(max_length=255, unique=True, db_index=True, null=False)
+    first_name = models.CharField(max_length=255)
+    last_name = models.CharField(max_length=255)
+    email = models.EmailField(max_length=255, unique=True, db_index=True, null=False)
     image_url = models.URLField(max_length=256, blank=True, null=True)
     is_verified = models.BooleanField(default=False)
     is_staff = models.BooleanField(
@@ -69,9 +71,6 @@ class User(AbstractBaseUser, PermissionsMixin, IndexedTimeStampedModel):
             "active. Unselect this instead of deleting accounts."
         ),
     )
-    auth_provider = models.CharField(
-        max_length=255, blank=False,
-        null=False, default=AUTH_PROVIDERS.get('email'))
     user_settings = models.OneToOneField(
         UserSetting,
         blank=True,
@@ -87,8 +86,9 @@ class User(AbstractBaseUser, PermissionsMixin, IndexedTimeStampedModel):
 
     objects = UserManager()
 
-    USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ['username']
+    USERNAME_FIELD = "username"
+    EMAIL_FIELD = "email"
+    REQUIRED_FIELDS = ['email']
 
     def tokens(self):
         refresh = RefreshToken.for_user(self)
@@ -124,15 +124,15 @@ class User(AbstractBaseUser, PermissionsMixin, IndexedTimeStampedModel):
 
 
 class UserCertification(BaseAppModel):
-    institution_name = models.CharField(max_length=250)
-    certificate_program = models.CharField(max_length=250)
+    institution_name = models.CharField(max_length=250, null=False)
+    certificate_program = models.CharField(max_length=250, null=False)
     certificate_number = models.CharField(max_length=250, blank=True, null=True)
     completion_date = models.DateField(blank=True, null=True)
     user: User = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         models.CASCADE,
         blank=True,
-        null=True,
+        null=False,
         related_name="user_certifications")
 
     class Meta:
@@ -142,9 +142,13 @@ class UserCertification(BaseAppModel):
     def __str__(self):
         return f"{self.user.get_short_name()} : {self.certificate_program}"
 
+    def archive(self):
+        self.status = True
+        self.save()
+
 
 class UserEmployer(BaseAppModel):
-    employer_name = models.CharField(max_length=200)
+    employer_name = models.CharField(max_length=200, blank=True)
     position = models.CharField(max_length=250, blank=True, null=True)
     current_position = models.BooleanField(blank=True, null=True)
     description = models.TextField(blank=True, null=True)
@@ -164,11 +168,15 @@ class UserEmployer(BaseAppModel):
     def __str__(self):
         return f"{self.user.get_short_name()} : {self.employer_name}"
 
+    def archive(self):
+        self.status = True
+        self.save()
+
 
 class UserLicense(BaseAppModel):
-    issuing_authority = models.CharField(max_length=250)
-    license_type = models.CharField(max_length=250)
-    license_number = models.CharField(max_length=250)
+    issuing_authority = models.CharField(max_length=250, blank=True)
+    license_type = models.CharField(max_length=250, blank=True)
+    license_number = models.CharField(max_length=250, blank=True)
     completion_date = models.DateField(blank=True, null=True)
     expiration_date = models.DateField(blank=True, null=True)
     user: User = models.ForeignKey(
@@ -185,9 +193,13 @@ class UserLicense(BaseAppModel):
     def __str__(self):
         return f"{self.user.get_short_name()} : {self.license_type}"
 
+    def archive(self):
+        self.status = True
+        self.save()
+
 
 class UserSchool(BaseAppModel):
-    school_name = models.CharField(max_length=250)
+    school_name = models.CharField(max_length=250, blank=True)
     program = models.CharField(max_length=250, blank=True, null=True)
     degree_type = models.CharField(choices=DEGREE_TYPE, blank=True, null=True, max_length=25)
     current_student = models.BooleanField(blank=True, null=True)
@@ -206,6 +218,10 @@ class UserSchool(BaseAppModel):
 
     def __str__(self):
         return f"{self.user.get_short_name()} : {self.school_name}"
+
+    def archive(self):
+        self.status = True
+        self.save()
 
 
 # add a signal to automatically create default
