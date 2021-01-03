@@ -5,10 +5,6 @@ from rest_framework import status
 from rest_framework.test import APITestCase, RequestsClient
 
 User = get_user_model()
-client = RequestsClient()
-response = client.get('http://localhost/homepage/')
-assert response.status_code == 200
-csrftoken = response.cookies['csrftoken']
 
 
 class UsersManagersTests(TestCase):
