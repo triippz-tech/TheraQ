@@ -120,4 +120,3 @@ After enabling dyno metadata and setting the environment variables, your next He
 ### `CELERY_ACKS_LATE = True`
 We believe Celery tasks should be idempotent. So for us it's safe to set `CELERY_ACKS_LATE = True` to ensure tasks will be re-queued after a worker failure. Check Celery docs on ["Should I use retry or acks_late?"](https://docs.celeryproject.org/en/latest/faq.html#should-i-use-retry-or-acks-late) for more info.
 
-https://gitlab.com/verbose-equals-true/django-postgres-vue-gitlab-ecs/-/blob/develop/backend/apps/banking/views.py
