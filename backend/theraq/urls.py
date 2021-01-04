@@ -36,7 +36,7 @@ urlpatterns = [
     path("api/account/auth/", include(auth_urlpatterns), name="account-auth"),
     path("api/users/", include(user_urlpatterns), name="users"),
     path("api/questions/", include("questions.urls"), name="questions"),
-    path("api/subq/", include("subq.urls"), name="subq"),
+    path("api/subqs/", include("subq.urls"), name="subq"),
 
     path("", include("core.urls"), name="core"),
     path("jsreverse/", django_js_reverse.views.urls_js, name="js_reverse"),

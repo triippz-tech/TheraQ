@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import filters
+from rest_framework import filters, status
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
@@ -15,9 +15,12 @@ from subq.serializers import (
     SubQFollowerSerializer,
     ViewSubQSerializer,
     CreateSubQSerializer,
-    UpdateSubQSerializer,
-    SubQUserSerializer, ViewSubQFollowerSerializer, CreateSubQFollowerSerializer, UpdateSubQFollowerSerializer
+    ViewSubQFollowerSerializer,
+    CreateSubQFollowerSerializer,
+    UpdateSubQFollowerSerializer,
+    ListSubQSerializer
 )
+from accounts.serializers import IdUserSerializer
 from subq.models import SubQ, SubQFollower
 
 User = get_user_model()
@@ -28,25 +31,21 @@ class SubQViewSet(ModelViewSet):
     renderer_classes = (TheraQJsonRenderer,)
     lookup_fields = ('slug', 'id')
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ["id", "status", "created_date", "updated_date"]
+    filterset_fields = ["id", "status", "created_date", "updated_date", "sub_name", "slug", "description",
+                        "owner__email", "owner__username"]
     search_fields = ["sub_name", "slug", "description", "owner__email", "owner__username"]
     serializer_class = ViewSubQSerializer
 
     def get_serializer_class(self):
         if self.action == "create":
             return CreateSubQSerializer
-        if self.action == "update" or self.action == "partial_update":
-            return UpdateSubQSerializer
+        if self.action == "list":
+            return ListSubQSerializer
         if self.action == "add_moderator" or self.action == "remove_moderator" or self.action == "ban":
-            return SubQUserSerializer
+            return IdUserSerializer
         if self.action == "leave" or self.action == "join":
             return EmptySerializer
         return ViewSubQSerializer
-
-    def list(self, request, *args, **kwargs):
-        queryset = SubQ.objects.order_by('sub_name')
-        serializer = ViewSubQSerializer(queryset, many=True, exclude=("followers", "moderators"))
-        return Response(serializer.data)
 
     @swagger_auto_schema(responses={404: "SubQ Does not Exist"})
     def retrieve(self, request, *args, **kwargs):
@@ -68,7 +67,7 @@ class SubQViewSet(ModelViewSet):
 
     @swagger_auto_schema(
         responses={
-            200: UpdateSubQSerializer(),
+            200: ViewSubQSerializer(),
             404: "SubQ Does not Exist",
             401: "UnAuthorized", 400:
                 "Bad Request"
@@ -84,7 +83,7 @@ class SubQViewSet(ModelViewSet):
             item = get_object_or_404(SubQ, pk=kwargs["pk"])
         if item.owner.pk != request.user.pk and not request.user.is_superuser:
             raise SubQException(theraq_err=UNAUTHORIZED_ERR_401, default_code="update_sub_err")
-        serializer = UpdateSubQSerializer(item, data=request.data)
+        serializer = ViewSubQSerializer(item, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
@@ -108,9 +107,9 @@ class SubQViewSet(ModelViewSet):
         except KeyError:
             item = get_object_or_404(SubQ, pk=kwargs["pk"])
         if item.owner.pk != request.user.pk and not request.user.is_superuser:
-            raise SubQException(theraq_err=UNAUTHORIZED_ERR_401, default_code="leave_sub_err")
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
         item.archive()
-        return Response(status=204)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @swagger_auto_schema(
         responses={
@@ -132,21 +131,17 @@ class SubQViewSet(ModelViewSet):
         except KeyError:
             item = get_object_or_404(SubQ, pk=kwargs["pk"])
         if item.owner.pk != request.user.pk and not request.user.is_superuser:
-            raise SubQException(theraq_err=UNAUTHORIZED_ERR_401, default_code="add_mod_err")
-        serializer = SubQUserSerializer(data=request.data)
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        serializer = IdUserSerializer(data=request.data)
         if serializer.is_valid():
             try:
-                follower: SubQFollower = SubQFollower.objects.get(user=serializer.user, subq=item)
+                follower: SubQFollower = SubQFollower.objects.get(follower__pk=serializer.data["id"], subq=item)
                 follower.is_moderator = True
                 follower.save()
                 return Response(status=200)
             except SubQFollower.DoesNotExist:
-                raise SubQException(status_code=404,
-                                    detail="User is not a follower of this SubQ.",
-                                    default_code="add_mod_err")
-        raise SubQException(status_code=400,
-                            detail="Error encountered while adding moderator.",
-                            default_code="add_mod_err")
+                return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @swagger_auto_schema(
         responses={
@@ -168,21 +163,17 @@ class SubQViewSet(ModelViewSet):
         except KeyError:
             item = get_object_or_404(SubQ, pk=kwargs["pk"])
         if item.owner.pk != request.user.pk and not request.user.is_superuser:
-            raise SubQException(theraq_err=UNAUTHORIZED_ERR_401, default_code="remove_mod_err")
-        serializer = SubQUserSerializer(data=request.data)
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        serializer = IdUserSerializer(data=request.data)
         if serializer.is_valid():
             try:
-                follower: SubQFollower = SubQFollower.objects.get(user=serializer.user, subq=item)
+                follower: SubQFollower = SubQFollower.objects.get(follower__pk=serializer.data["id"], subq=item)
                 follower.is_moderator = False
                 follower.save()
                 return Response(status=200)
             except SubQFollower.DoesNotExist:
-                raise SubQException(status_code=404,
-                                    detail="User not a member of this SubQ.",
-                                    default_code="remove_mod_err")
-        raise SubQException(status_code=400,
-                            detail="Unable to remove moderator.",
-                            default_code="remove_mod_err")
+                return Response(status=404)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @swagger_auto_schema(
         responses={
@@ -205,20 +196,16 @@ class SubQViewSet(ModelViewSet):
         except KeyError:
             item = get_object_or_404(SubQ, pk=kwargs["pk"])
         if not self._is_moderator_or_owner(request.user, item) and not request.user.is_superuser:
-            raise SubQException(theraq_err=UNAUTHORIZED_ERR_401, default_code="ban_follower_err")
-        serializer = SubQUserSerializer(data=request.data)
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        serializer = IdUserSerializer(data=request.data)
         if serializer.is_valid():
             try:
-                follower: SubQFollower = SubQFollower.objects.get(user=serializer.user, subq=item)
+                follower: SubQFollower = SubQFollower.objects.get(follower__pk=serializer.data["id"], subq=item)
                 follower.ban()
                 return Response(status=200)
             except SubQFollower.DoesNotExist:
-                raise SubQException(status_code=404,
-                                    detail="Follower not a member of SubQ.",
-                                    default_code="ban_follower_err")
-        raise SubQException(status_code=400,
-                            detail="Unable to ban user.",
-                            default_code="ban_follower_err")
+                return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
 
     @swagger_auto_schema(
         responses={
@@ -238,19 +225,13 @@ class SubQViewSet(ModelViewSet):
         except KeyError:
             item = get_object_or_404(SubQ, pk=kwargs["pk"])
         if request.user == item.owner:
-            raise SubQException(status_code=400,
-                                detail="Cannot leave SubQ as owner.",
-                                default_code="leave_own_subq_err")
+            return Response(status=status.HTTP_400_BAD_REQUEST)
         try:
-            follower: SubQFollower = SubQFollower.objects.get(user=request.user, subq=item)
+            follower: SubQFollower = SubQFollower.objects.get(follower=request.user, subq=item)
             follower.archive()
+            return Response(status=status.HTTP_204_NO_CONTENT)
         except SubQFollower.DoesNotExist:
-            raise SubQException(status_code=404,
-                                detail="User not member of SubQ.",
-                                default_code="not_member_err")
-        raise SubQException(status_code=400,
-                            detail="Unable to leave Sub.",
-                            default_code="leave_sub_err")
+            return Response(status=status.HTTP_404_NOT_FOUND)
 
     @swagger_auto_schema(
         responses={
@@ -271,19 +252,15 @@ class SubQViewSet(ModelViewSet):
         except KeyError:
             item = get_object_or_404(SubQ, pk=kwargs["pk"])
         try:
-            follower: SubQFollower = SubQFollower.objects.get_or_create(user=request.user, subq=item)
+            follower, created = SubQFollower.objects.get_or_create(follower=request.user, subq=item)
             if follower.is_banned:
-                return SubQException(status_code=401,
-                                     detail="User Banned from Sub.",
-                                     default_code="join_sub_err")
-            follower.status = True
+                return Response(status=status.HTTP_401_UNAUTHORIZED)
+            follower.status = False
             follower.save()
+            return Response(status=204)
         except SubQFollower.DoesNotExist:
             SubQFollower.join_sub(request.user, item)
             return Response(status=201)
-        raise SubQException(status_code=400,
-                            detail="Unable to join Sub.",
-                            default_code="join_sub_err")
 
     def _is_moderator_or_owner(self, user: User, subq: SubQ):
         if user == subq.owner:

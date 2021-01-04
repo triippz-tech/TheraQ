@@ -35,33 +35,63 @@ class IdSubQSerializer(serializers.Serializer):
 
 
 class CreateSubQSerializer(serializers.ModelSerializer):
+    owner = IdUserSerializer(required=False, many=False)
+    sub_name = serializers.CharField(required=True, max_length=250, allow_null=False, allow_blank=True)
+    description = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    slug = serializers.SlugField(required=False, max_length=80, allow_null=False, allow_blank=True)
 
     class Meta:
         model = SubQ
-        fields = ("id", "sub_name", "description", "slug", )
+        fields = ("id", "sub_name", "description", "slug", "owner")
         read_only_fields = ("id", "created_date", "updated_date",)
         optional = ("description", "slug", )
 
 
-class UpdateSubQSerializer(serializers.ModelSerializer):
+class ListSubQSerializer(DynamicFieldsModelSerializer):
+    owner = IdUserSerializer(many=False)
+    follower_count = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = SubQ
-        fields = ("id", "description",)
-        read_only_fields = ("id",)
+        fields = (
+        "id", "sub_name", "description", "slug", "owner", "created_date", "updated_date", "follower_count")
+        read_only_fields = ("id", "created_date", "updated_date", "slug", "sub_name", "owner")
+        optional = ("sub_name", "description", "slug", "owner",)
+
+    def get_follower_count(self, subq):
+        return subq.followers.count()
+
+    def get_moderators(self, subq):
+        moderators = SubQFollower.objects.filter(subq=subq, is_moderator=True)
+        serializer = IdSubQFollowerSerializer(instance=moderators, many=True)
+        return serializer.data
 
 
 class ViewSubQSerializer(DynamicFieldsModelSerializer):
-    followers = IdSubQFollowerSerializer(many=True, allow_null=True)
-    owner = IdUserSerializer(many=False)
-    follower_count = serializers.SerializerMethodField(read_only=True)
-    moderators = serializers.SerializerMethodField(read_only=True)
+    sub_name = serializers.CharField(required=False, max_length=250, allow_null=False, allow_blank=True)
+    description = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    slug = serializers.SlugField(required=False, max_length=80, allow_null=False, allow_blank=True)
+    followers = IdSubQFollowerSerializer(required=False, many=True, allow_null=False)
+    owner = IdUserSerializer(required=False, many=False)
+    follower_count = serializers.SerializerMethodField(required=False, read_only=True)
+    moderators = serializers.SerializerMethodField(required=False, read_only=True)
 
     class Meta:
         model = SubQ
-        fields = ("id", "sub_name", "description", "slug", "owner", "followers", "created_date", "updated_date", "follower_count", "moderators")
+        fields = (
+            "id",
+            "sub_name",
+            "description",
+            "slug",
+            "owner",
+            "followers",
+            "created_date",
+            "updated_date",
+            "follower_count",
+            "moderators"
+        )
         read_only_fields = ("id", "created_date", "updated_date", "slug", "sub_name", "owner")
-        optional = ("sub_name", "description", "slug", "owner", "followers",)
+        optional = ("description", "owner", "followers",)
 
     def get_follower_count(self, subq):
         return subq.followers.count()
