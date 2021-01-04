@@ -24,3 +24,15 @@ PASSWORD_HASHERS = [
 # Celery
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
+
+CORS_ORIGIN_WHITELIST = [
+    "http://localhost:3000",
+    "https://theraq.com",
+    "http://127.0.0.1:8000"
+]
+
+CORS_ORIGIN_REGEX_WHITELIST = [
+    r"^https://\w+\.theraq\.com",
+]
+
+LOGIN_REDIRECT_URL="http://localhost:8000"

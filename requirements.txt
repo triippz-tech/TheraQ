@@ -59,7 +59,7 @@ dj-database-url==0.5.0
     # via -r requirements.in
 dj-rest-auth[with_social]==2.1.2
     # via -r requirements.in
-django-allauth==0.44.0
+django-allauth==0.42.0
     # via dj-rest-auth
 django-baton==1.13.2
     # via -r requirements.in

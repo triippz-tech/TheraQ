@@ -25,7 +25,6 @@ AUTH_USER_MODEL = "accounts.User"
 ALLOWED_HOSTS = []
 
 DJANGO_APPS = [
-    "accounts",
     "baton",
     "django.contrib.admin",
     "django.contrib.auth",
@@ -58,6 +57,7 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     "core",
+    "accounts",
     "subq",
     "questions",
 ]

@@ -7,7 +7,6 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework import filters, mixins
 
-
 from accounts.models import (
     UserSetting,
     UserProfile,
@@ -34,7 +33,8 @@ from accounts.serializers import (
     CreateUserLicenseSerializer,
     UpdateUserSchoolSerializer,
     CreateUserSchoolSerializer,
-    ViewUserSchoolSerializer
+    ViewUserSchoolSerializer,
+    ListUserSerializer
 )
 from core.renderers import TheraQJsonRenderer
 
@@ -47,26 +47,26 @@ class UserSettingViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, vie
     renderer_classes = (TheraQJsonRenderer,)
 
     def get_serializer_class(self):
-        if self.action == "update":
-            return UpdateUserSettingSerializer
         return ViewUserSettingSerializer
 
     def retrieve(self, request, *args, **kwargs):
         try:
-            item = get_object_or_404(UserSetting, slug=kwargs["slug"])
+            item = get_object_or_404(UserSetting, user__username=kwargs["username"])
         except KeyError:
             item = get_object_or_404(UserSetting, pk=kwargs["pk"])
+        if item.pk != request.user.pk and not request.user.is_superuser:
+            return Response(status=401)
         serializer = ViewUserSettingSerializer(item)
         return Response(status=200, data=serializer.data)
 
     def update(self, request, *args, **kwargs):
         try:
-            item = get_object_or_404(UserSetting, slug=kwargs["slug"])
+            item = get_object_or_404(UserSetting, user__username=kwargs["username"])
         except KeyError:
             item = get_object_or_404(UserSetting, pk=kwargs["pk"])
         if item.user.pk != request.user.pk and not request.user.is_superuser:
             return Response(status=401)
-        serializer = UpdateUserSettingSerializer(item, data=request.data)
+        serializer = ViewUserSettingSerializer(item, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
@@ -77,11 +77,6 @@ class UserProfileViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, vie
     queryset = UserProfile.objects.all()
     serializer_class = ViewUserProfileSerialzer
     renderer_classes = (TheraQJsonRenderer,)
-
-    def get_serializer_class(self):
-        if self.action == "update":
-            return UpdateUserProfileSerializer
-        return ViewUserProfileSerialzer
 
     def retrieve(self, request, *args, **kwargs):
         try:
@@ -96,7 +91,7 @@ class UserProfileViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, vie
             item = get_object_or_404(UserSetting, user__username=kwargs["username"])
         except KeyError:
             item = get_object_or_404(UserSetting, pk=kwargs["pk"])
-        serializer = UpdateUserProfileSerializer(item, data=request.data)
+        serializer = ViewUserProfileSerialzer(item, data=request.data)
         if item.user.pk != request.user.pk and not request.user.is_superuser:
             return Response(status=401)
         if serializer.is_valid():
@@ -116,25 +111,13 @@ class UserViewSet(mixins.ListModelMixin,
     filterset_fields = ["id", "is_staff", "is_superuser", "is_active", "is_verified"]
     search_fields = ["email", "username", "user_certifications__certificate_program",
                      "user_certifications__institution_name", "user_employers__employer_name",
-                     "users_employer__position",  "user_licenses__issuing_authority", "user_licenses__license_type",
+                     "users_employer__position", "user_licenses__issuing_authority", "user_licenses__license_type",
                      "user_schools__school_name", "user_schools__program"]
 
     def get_serializer_class(self):
-        if self.action == "update" or self.action == "partial_update":
-            return UpdateUserSerializer
-        return ViewUserSettingSerializer
-
-    def list(self, request, *args, **kwargs):
-        queryset = User.objects.order_by('username')
-        serializer = ViewUserSerializer(queryset, many=True, exclude=(
-            "user_profile",
-            "user_settings",
-            "user_certifications",
-            "user_employers",
-            "user_licenses",
-            "user_schools"
-        ))
-        return Response(serializer.data)
+        if self.action == "list":
+            return ListUserSerializer
+        return ViewUserSerializer
 
     def retrieve(self, request, *args, **kwargs):
         try:
@@ -149,9 +132,9 @@ class UserViewSet(mixins.ListModelMixin,
             item = get_object_or_404(User, username=kwargs["username"])
         except KeyError:
             item = get_object_or_404(User, pk=kwargs["pk"])
-        if item.user.pk != request.user.pk and not request.user.is_superuser:
+        if item.pk != request.user.pk and not request.user.is_superuser:
             return Response(status=401)
-        serializer = UpdateUserSerializer(item, data=request.data)
+        serializer = ViewUserSerializer(item, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
@@ -159,25 +142,18 @@ class UserViewSet(mixins.ListModelMixin,
 
 
 class UserCertificationViewSet(viewsets.ModelViewSet):
-    queryset = UserCertification.objects.all()
+    queryset = UserCertification.objects.all().order_by('certificate_program')
     serializer_class = ViewUserCertificationSerializer
     renderer_classes = (TheraQJsonRenderer,)
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ["id", "status", "completion_date"]
+    filterset_fields = ["id", "status", "completion_date", "user__email", "user__username"]
     search_fields = ["user__email", "user__username", "certificate_program",
                      "institution_name", "certificate_number"]
 
     def get_serializer_class(self):
-        if self.action == "update" or self.action == "partial_update":
-            return UpdateUserCertificationSerializer
         if self.action == "create":
             return CreateUserCertificationSerializer
         return ViewUserCertificationSerializer
-
-    def list(self, request, *args, **kwargs):
-        queryset = UserCertification.objects.order_by('certificate_program')
-        serializer = ViewUserCertificationSerializer(queryset, many=True)
-        return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
         serializer = CreateUserCertificationSerializer(data=request.data)
@@ -197,7 +173,7 @@ class UserCertificationViewSet(viewsets.ModelViewSet):
         item = get_object_or_404(UserCertification, pk=kwargs["pk"])
         if item.user.pk != request.user.pk and not request.user.is_superuser:
             return Response(status=401)
-        serializer = UpdateUserCertificationSerializer(item, data=request.data)
+        serializer = ViewUserCertificationSerializer(item, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
@@ -212,24 +188,18 @@ class UserCertificationViewSet(viewsets.ModelViewSet):
 
 
 class UserEmployerViewSet(viewsets.ModelViewSet):
-    queryset = UserEmployer.objects.all()
+    queryset = UserEmployer.objects.all().order_by("employer_name")
     serializer_class = ViewUserEmployerSerializer
     renderer_classes = (TheraQJsonRenderer,)
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ["id", "status", "start_date", "end_date", "current_position"]
+    filterset_fields = ["id", "status", "start_date", "end_date", "current_position", "user__email", "user__username",
+                        "employer_name", "position"]
     search_fields = ["user__email", "user__username", "employer_name", "position", "description"]
 
     def get_serializer_class(self):
-        if self.action == "update" or self.action == "partial_update":
-            return UpdateUserEmployerSerializer
         if self.action == "create":
             return CreateUserEmployerSerializer
         return ViewUserEmployerSerializer
-
-    def list(self, request, *args, **kwargs):
-        queryset = UserEmployer.objects.order_by('employer_name')
-        serializer = ViewUserEmployerSerializer(queryset, many=True)
-        return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
         serializer = CreateUserEmployerSerializer(data=request.data)
@@ -263,24 +233,18 @@ class UserEmployerViewSet(viewsets.ModelViewSet):
 
 
 class UserLicenseViewSet(viewsets.ModelViewSet):
-    queryset = UserLicense.objects.all()
+    queryset = UserLicense.objects.all().order_by('license_type')
     serializer_class = ViewUserLicenseSerializer
     renderer_classes = (TheraQJsonRenderer,)
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ["id", "status", "completion_date", "expiration_date"]
+    filterset_fields = ["id", "status", "completion_date", "expiration_date", "user__email", "user__username",
+                        "issuing_authority", "license_type", "license_number"]
     search_fields = ["user__email", "user__username", "issuing_authority", "license_type", "license_number"]
 
     def get_serializer_class(self):
-        if self.action == "update" or self.action == "partial_update":
-            return UpdateUserLicenseSerializer
         if self.action == "create":
             return CreateUserLicenseSerializer
         return ViewUserLicenseSerializer
-
-    def list(self, request, *args, **kwargs):
-        queryset = UserLicense.objects.order_by('license_type')
-        serializer = ViewUserLicenseSerializer(queryset, many=True)
-        return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
         serializer = CreateUserLicenseSerializer(data=request.data)
@@ -299,7 +263,7 @@ class UserLicenseViewSet(viewsets.ModelViewSet):
         item = get_object_or_404(UserLicense, pk=kwargs["pk"])
         if item.user.pk != request.user.pk and not request.user.is_superuser:
             return Response(status=401)
-        serializer = UpdateUserLicenseSerializer(item, data=request.data)
+        serializer = ViewUserLicenseSerializer(item, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
@@ -314,24 +278,18 @@ class UserLicenseViewSet(viewsets.ModelViewSet):
 
 
 class UserSchoolViewSet(viewsets.ModelViewSet):
-    queryset = UserSchool.objects.all()
+    queryset = UserSchool.objects.all().order_by('school_name')
     serializer_class = ViewUserSchoolSerializer
     renderer_classes = (TheraQJsonRenderer,)
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ["id", "status", "start_date", "graduate_date", "degree_type", "current_student"]
+    filterset_fields = ["id", "status", "start_date", "graduate_date", "degree_type", "current_student",
+                        "user__email", "user__username", "school_name", "program"]
     search_fields = ["user__email", "user__username", "school_name", "program"]
 
     def get_serializer_class(self):
-        if self.action == "update" or self.action == "partial_update":
-            return UpdateUserSchoolSerializer
         if self.action == "create":
             return CreateUserSchoolSerializer
         return ViewUserSchoolSerializer
-
-    def list(self, request, *args, **kwargs):
-        queryset = UserSchool.objects.order_by('school_name')
-        serializer = ViewUserSchoolSerializer(queryset, many=True)
-        return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
         serializer = CreateUserSchoolSerializer(data=request.data)

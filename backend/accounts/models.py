@@ -8,11 +8,9 @@ from model_utils import Choices
 from rest_framework_simplejwt.tokens import RefreshToken
 
 
-from core.exceptions import OneToOneRelationPresentException
-from core.models import IndexedTimeStampedModel, BaseAppModel
-
 from .managers import UserManager
-
+from core.exceptions import OneToOneRelationPresentException
+from core.models import BaseAppModel, IndexedTimeStampedModel
 
 AUTH_PROVIDERS = {'facebook': 'facebook', 'google': 'google',
                   'twitter': 'twitter', 'email': 'email'}
@@ -40,10 +38,10 @@ class UserProfile(BaseAppModel):
     bio = models.TextField(blank=True, null=True)
     location = models.CharField(max_length=250, blank=True, null=True)
     nick_name = models.CharField(max_length=50, blank=True, null=True)
-    profile_picture = models.CharField(max_length=250, blank=True, null=True)
-    linkedin = models.CharField(max_length=250, blank=True, null=True)
-    twitter = models.CharField(max_length=250, blank=True, null=True)
-    facebook = models.CharField(max_length=250, blank=True, null=True)
+    profile_picture = models.URLField(max_length=250, blank=True, null=True)
+    linkedin = models.URLField(max_length=250, blank=True, null=True)
+    twitter = models.URLField(max_length=250, blank=True, null=True)
+    facebook = models.URLField(max_length=250, blank=True, null=True)
     birth_date = models.DateField(blank=True, null=True)
 
     class Meta:
@@ -58,7 +56,7 @@ class User(AbstractBaseUser, PermissionsMixin, IndexedTimeStampedModel):
     username = models.CharField(max_length=255, unique=True, db_index=True, null=False)
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
-    email = models.EmailField(max_length=255, unique=True, db_index=True, null=False)
+    email = models.EmailField(_('email address'), max_length=255, unique=True, db_index=True, null=False)
     image_url = models.URLField(max_length=256, blank=True, null=True)
     is_verified = models.BooleanField(default=False)
     is_staff = models.BooleanField(
@@ -110,16 +108,18 @@ class User(AbstractBaseUser, PermissionsMixin, IndexedTimeStampedModel):
         if self.user_settings:
             raise OneToOneRelationPresentException(
                 "Can not create default settings for already existing relationship", None)
-        self.user_settings = UserSetting()
-        self.user_settings.save()
+        new_user_settings = UserSetting()
+        new_user_settings.save()
+        self.user_settings = new_user_settings
         self.save()
 
     def create_default_profile(self):
         if self.user_profile:
             raise OneToOneRelationPresentException(
                 "Can not create default settings for already existing relationship", None)
-        self.user_profile = UserProfile()
-        self.user_profile.save()
+        profile = UserProfile()
+        profile.save()
+        self.user_profile = profile
         self.save()
 
 
@@ -148,8 +148,8 @@ class UserCertification(BaseAppModel):
 
 
 class UserEmployer(BaseAppModel):
-    employer_name = models.CharField(max_length=200, blank=True)
-    position = models.CharField(max_length=250, blank=True, null=True)
+    employer_name = models.CharField(max_length=200, null=False, blank=True)
+    position = models.CharField(max_length=250, blank=True, null=False)
     current_position = models.BooleanField(blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     start_date = models.DateField(blank=True, null=True)

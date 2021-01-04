@@ -15,7 +15,7 @@ class TheraQJsonRenderer(CamelCaseJSONRenderer):
             response["status"] = "error"
             response["data"] = None
             try:
-                response["message"] = data["detail"]
+                response["message"] = data["detail"] if data is not None else ""
             except KeyError:
                 response["data"] = data
 

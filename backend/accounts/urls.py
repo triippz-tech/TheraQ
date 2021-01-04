@@ -14,7 +14,8 @@ from accounts.views import (
     UserViewSet,
     UserCertificationViewSet,
     UserEmployerViewSet,
-    UserLicenseViewSet
+    UserLicenseViewSet,
+    UserSchoolViewSet
 )
 
 auth_urlpatterns = [
@@ -37,7 +38,7 @@ user_router = DefaultRouter()
 user_router.register(r"certifications", UserCertificationViewSet, basename="user-certifications")
 user_router.register(r"employers", UserEmployerViewSet, basename="user-employers")
 user_router.register(r"licenses", UserLicenseViewSet, basename="user-licenses")
-user_router.register(r"schools", UserLicenseViewSet, basename="user-schools")
+user_router.register(r"schools", UserSchoolViewSet, basename="user-schools")
 
 user_urlpatterns = [
     path("settings/<int:pk>/", UserSettingViewSet.as_view({

@@ -1,6 +1,11 @@
 
 # TheraQ
 
+## IN DEVELOPMENT
+--
+Please note, this is in development, and migrations may be add/removed until the
+first MVP is ready to go.
+
 ## About
 TheraQ is a social-based application where professionals in the healthcare field, specifically of
 the Therapy speciality (OT, PT, etc.), can discuss and seek answers to potential treatments and other information.

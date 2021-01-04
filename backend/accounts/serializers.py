@@ -33,11 +33,43 @@ class ViewUserSettingSerializer(DynamicFieldsModelSerializer):
 
 
 class ViewUserProfileSerialzer(DynamicFieldsModelSerializer):
+    headline = serializers.CharField(required=False, max_length=250, allow_null=True, allow_blank=True)
+    bio = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    location = serializers.CharField(required=False, max_length=250, allow_null=True, allow_blank=True)
+    nick_name = serializers.CharField(required=False, max_length=250, allow_null=True, allow_blank=True)
+    profile_picture = serializers.URLField(required=False, max_length=250, allow_null=True, allow_blank=True)
+    linkedin = serializers.CharField(required=False, max_length=250, allow_null=True, allow_blank=True)
+    twitter = serializers.CharField(required=False, max_length=250, allow_null=True, allow_blank=True)
+    facebook = serializers.CharField(required=False, max_length=250, allow_null=True, allow_blank=True)
+    birth_date = serializers.DateField(required=False, allow_null=True)
+
     class Meta:
         model = UserProfile
-        fields = '__all__'
+        fields = (
+            'id',
+            "headline",
+            "bio",
+            "location",
+            "nick_name",
+            "profile_picture",
+            "linkedin",
+            "twitter",
+            "facebook",
+            "birth_date"
+        )
         read_only_fields = (
             'id', 'created_date', 'updated_date', 'status'
+        )
+        optional_fields = (
+            "headline",
+            "bio",
+            "location",
+            "nick_name",
+            "profile_picture",
+            "linkedin",
+            "twitter",
+            "facebook",
+            "birth_date"
         )
 
 
@@ -60,11 +92,13 @@ class UpdateUserCertificationSerializer(serializers.ModelSerializer):
 
 
 class CreateUserCertificationSerializer(serializers.ModelSerializer):
+    user = IdUserSerializer(required=False)
     completion_date = serializers.DateField(required=False, allow_null=True)
 
     class Meta:
         model = UserCertification
         fields = (
+            "user",
             'institution_name',
             'certificate_program',
             'certificate_number',
@@ -72,6 +106,7 @@ class CreateUserCertificationSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ('status', 'created_date', 'updated_date')
         optional_fields = (
+            "user",
             'certificate_number',
             'completion_date',
         )
@@ -79,6 +114,9 @@ class CreateUserCertificationSerializer(serializers.ModelSerializer):
 
 class ViewUserCertificationSerializer(DynamicFieldsModelSerializer):
     user = IdUserSerializer(required=False, allow_null=True, many=False)
+    institution_name = serializers.CharField(required=False, max_length=250, allow_null=False, allow_blank=True)
+    certificate_program = serializers.CharField(required=False, max_length=250, allow_null=False, allow_blank=True)
+    certificate_number = serializers.CharField(required=False, max_length=250, allow_null=True, allow_blank=True)
     completion_date = serializers.DateField(required=False, allow_null=True)
 
     class Meta:
@@ -95,21 +133,27 @@ class ViewUserCertificationSerializer(DynamicFieldsModelSerializer):
 
 
 class CreateUserEmployerSerializer(serializers.ModelSerializer):
-    employer_name = serializers.CharField(max_length=200, required=True)
+    employer_name = serializers.CharField(required=True, max_length=200, allow_null=False)
+    position = serializers.CharField(required=True, max_length=250, allow_null=False)
+    current_position = serializers.BooleanField(required=False, allow_null=True, default=True)
+    description = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    user = IdUserSerializer(required=False, allow_null=True, many=False)
     start_date = serializers.DateField(required=False, allow_null=True)
     end_date = serializers.DateField(required=False, allow_null=True)
 
     class Meta:
         model = UserEmployer
         fields = (
+            'id',
             'employer_name',
             'position',
             'current_position',
             'description',
             'start_date',
-            'end_date'
+            'end_date',
+            'user'
         )
-        read_only_fields = ('status', 'created_date', 'updated_date')
+        read_only_fields = ('id', 'status', 'created_date', 'updated_date')
         optional_fields = (
             'current_position',
             'description',
@@ -119,15 +163,30 @@ class CreateUserEmployerSerializer(serializers.ModelSerializer):
 
 
 class UpdateUserEmployerSerializer(serializers.ModelSerializer):
+    user = IdUserSerializer(required=False, allow_null=True, many=False)
+
     class Meta:
         model = UserEmployer
-        fields = '__all__'
+        fields = (
+            'id',
+            'employer_name',
+            'position',
+            'current_position',
+            'description',
+            'start_date',
+            'end_date',
+            'user'
+        )
         read_only_fields = (
             'id', 'created_date', 'updated_date', 'status'
         )
 
 
 class ViewUserEmployerSerializer(DynamicFieldsModelSerializer):
+    employer_name = serializers.CharField(required=False, max_length=200, allow_null=False)
+    position = serializers.CharField(required=False, max_length=250, allow_null=False)
+    current_position = serializers.BooleanField(required=False, allow_null=True)
+    description = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     user = IdUserSerializer(required=False, allow_null=True, many=False)
     start_date = serializers.DateField(required=False, allow_null=True)
     end_date = serializers.DateField(required=False, allow_null=True)
@@ -197,7 +256,10 @@ class UpdateUserLicenseSerializer(serializers.ModelSerializer):
 
 
 class ViewUserLicenseSerializer(DynamicFieldsModelSerializer):
-    user = IdUserSerializer(required=False, allow_null=True, many=False)
+    user = IdUserSerializer(required=False, allow_null=False, many=False)
+    issuing_authority = serializers.CharField(required=False, max_length=250, allow_null=False, allow_blank=True)
+    license_type = serializers.CharField(required=False, max_length=250, allow_null=False, allow_blank=True)
+    license_number = serializers.CharField(required=False, max_length=250, allow_null=False, allow_blank=True)
     completion_date = serializers.DateField(required=False, allow_null=True)
     expiration_date = serializers.DateField(required=False, allow_null=True)
 
@@ -223,13 +285,16 @@ class ViewUserLicenseSerializer(DynamicFieldsModelSerializer):
 
 
 class CreateUserSchoolSerializer(serializers.ModelSerializer):
-    school_name = serializers.CharField(max_length=250, required=True, error_messages={
+    user = IdUserSerializer(required=False, allow_null=True, many=False)
+    school_name = serializers.CharField(max_length=250, required=True, allow_null=False, error_messages={
         "required": "Must provide a school name"
     })
-    program = serializers.CharField(max_length=250, required=True, error_messages={
+    program = serializers.CharField(max_length=250, required=True, allow_null=False, error_messages={
         "required": "Must provide a degree program"
     })
-    degree_type = ChoicesField(DEGREE_TYPE, required=True, error_messages={"required": "Must select a degree type"})
+    degree_type = ChoicesField(DEGREE_TYPE, required=True, allow_null=False, error_messages={
+        "required": "Must select a degree type"
+    })
     current_student = serializers.BooleanField(required=False, default=True, allow_null=True)
     start_date = serializers.DateField(required=False, allow_null=True)
     graduate_date = serializers.DateField(required=False, allow_null=True)
@@ -237,14 +302,16 @@ class CreateUserSchoolSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserSchool
         fields = (
+            "id",
             'school_name',
             'program',
             'degree_type',
             'current_student',
             'start_date',
-            'graduate_date'
+            'graduate_date',
+            "user"
         )
-        read_only_fields = ('status', 'created_date', 'updated_date')
+        read_only_fields = ("id", 'status', 'created_date', 'updated_date', "user")
         optional_fields = (
             'current_student',
             'start_date',
@@ -263,12 +330,17 @@ class UpdateUserSchoolSerializer(serializers.ModelSerializer):
 
 class ViewUserSchoolSerializer(DynamicFieldsModelSerializer):
     user = IdUserSerializer(required=False, allow_null=True, many=False)
+    school_name = serializers.CharField(max_length=250, required=False, allow_blank=True, allow_null=False)
+    program = serializers.CharField(max_length=250, required=False, allow_blank=True, allow_null=False)
+    degree_type = ChoicesField(DEGREE_TYPE, required=False, allow_null=False)
+    current_student = serializers.BooleanField(required=False, default=True, allow_null=True)
     start_date = serializers.DateField(required=False, allow_null=True)
     graduate_date = serializers.DateField(required=False, allow_null=True)
 
     class Meta:
         model = UserSchool
         fields = (
+            'id',
             'school_name',
             'program',
             'degree_type',
@@ -277,7 +349,7 @@ class ViewUserSchoolSerializer(DynamicFieldsModelSerializer):
             'graduate_date',
             'user'
         )
-        read_only_fields = ('status', 'created_date', 'updated_date')
+        read_only_fields = ('id', 'status', 'created_date', 'updated_date', 'user')
         optional_fields = (
             'school_name',
             'program',
@@ -285,7 +357,6 @@ class ViewUserSchoolSerializer(DynamicFieldsModelSerializer):
             'current_student',
             'start_date',
             'graduate_date',
-            'user'
         )
 
 
@@ -313,18 +384,16 @@ class UserSerializer(DynamicFieldsModelSerializer):
         )
 
 
-class ViewUserSerializer(DynamicFieldsModelSerializer):
-    is_staff = serializers.BooleanField(read_only=True, required=False, allow_null=True)
-    is_verified = serializers.BooleanField(read_only=True, required=False, allow_null=True)
-    is_superuser = serializers.BooleanField(read_only=True, required=False, allow_null=True)
-    is_active = serializers.BooleanField(read_only=True, required=False, allow_null=True)
-    user_profile = ViewUserProfileSerialzer(exclude=("user",), many=False, read_only=False, required=False, allow_null=True)
-    user_settings = ViewUserSettingSerializer(exclude=("user",), many=False, read_only=False, required=False, allow_null=True)
-    user_certifications = ViewUserCertificationSerializer(exclude=("user",), many=True, read_only=False, required=False,
-                                                          allow_null=True)
-    user_employers = ViewUserEmployerSerializer(exclude=("user",), many=True, read_only=False, required=False, allow_null=True)
-    user_licenses = ViewUserLicenseSerializer(exclude=("user",), many=True, read_only=False, required=False, allow_null=True)
-    user_schools = ViewUserSchoolSerializer(exclude=("user",), many=True, read_only=False, required=False, allow_null=True)
+class ListUserSerializer(DynamicFieldsModelSerializer):
+    first_name = serializers.CharField(required=False, max_length=255, allow_null=True)
+    last_name = serializers.CharField(required=False, max_length=255, allow_null=True)
+    image_url = serializers.URLField(required=False, max_length=256, allow_null=True)
+    email = serializers.EmailField(required=False, allow_null=False, max_length=255)
+    username = serializers.CharField(required=False, allow_null=False, max_length=255)
+    is_staff = serializers.BooleanField(read_only=True, required=False, allow_null=False)
+    is_verified = serializers.BooleanField(read_only=True, required=False, allow_null=False)
+    is_superuser = serializers.BooleanField(read_only=True, required=False, allow_null=False)
+    is_active = serializers.BooleanField(read_only=True, required=False, allow_null=False)
 
     class Meta:
         model = User
@@ -332,6 +401,63 @@ class ViewUserSerializer(DynamicFieldsModelSerializer):
             "id",
             "email",
             "username",
+            "first_name",
+            "last_name",
+            "is_staff",
+            "is_superuser",
+            "is_active",
+            "image_url",
+            "is_verified",
+        )
+        read_only_fields = (
+            "id",
+            "created_date",
+            "updated_date",
+            "username",
+            "is_staff",
+            "is_superuser",
+            "is_active",
+            "is_verified",
+            "user_profile",
+            "user_settings",
+            "user_certifications",
+            "user_employers",
+            "user_licenses",
+            "user_schools"
+        )
+
+
+class ViewUserSerializer(DynamicFieldsModelSerializer):
+    first_name = serializers.CharField(required=False, max_length=255, allow_null=True)
+    last_name = serializers.CharField(required=False, max_length=255, allow_null=True)
+    image_url = serializers.URLField(required=False, max_length=256, allow_null=True)
+    email = serializers.EmailField(required=False, allow_null=False, max_length=255)
+    username = serializers.CharField(required=False, allow_null=False, max_length=255)
+    is_staff = serializers.BooleanField(read_only=True, required=False, allow_null=False)
+    is_verified = serializers.BooleanField(read_only=True, required=False, allow_null=False)
+    is_superuser = serializers.BooleanField(read_only=True, required=False, allow_null=False)
+    is_active = serializers.BooleanField(read_only=True, required=False, allow_null=False)
+    user_profile = ViewUserProfileSerialzer(exclude=("user",), many=False, read_only=False, required=False,
+                                            allow_null=False)
+    user_settings = ViewUserSettingSerializer(exclude=("user",), many=False, read_only=False, required=False,
+                                              allow_null=False)
+    user_certifications = ViewUserCertificationSerializer(exclude=("user",), many=True, read_only=False, required=False,
+                                                          allow_null=True)
+    user_employers = ViewUserEmployerSerializer(exclude=("user",), many=True, read_only=False, required=False,
+                                                allow_null=True)
+    user_licenses = ViewUserLicenseSerializer(exclude=("user",), many=True, read_only=False, required=False,
+                                              allow_null=True)
+    user_schools = ViewUserSchoolSerializer(exclude=("user",), many=True, read_only=False, required=False,
+                                            allow_null=True)
+
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "email",
+            "username",
+            "first_name",
+            "last_name",
             "is_staff",
             "is_superuser",
             "is_active",
@@ -362,12 +488,16 @@ class ViewUserSerializer(DynamicFieldsModelSerializer):
         )
         optional = (
             "email",
-            "image_url"
+            "image_url",
+            "first_name",
+            "last_name",
         )
 
 
 class UpdateUserSerializer(serializers.ModelSerializer):
-    image_url = serializers.URLField(required=False, max_length=256)
+    image_url = serializers.URLField(required=False, max_length=256, allow_null=True)
+    email = serializers.EmailField(required=False, allow_null=False, max_length=255)
+    username = serializers.CharField(required=False, allow_null=False, max_length=255)
 
     class Meta:
         model = User

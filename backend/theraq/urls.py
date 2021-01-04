@@ -31,12 +31,12 @@ openapi_urls = [
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('baton/', include('baton.urls')),
-    path("api/openapi/", include(openapi_urls)),
-    path("api/account/", include('allauth.urls')),
-    path("api/account/auth/", include(auth_urlpatterns)),
-    path("api/users/", include(user_urlpatterns)),
-    path("api/questions/", include("questions.urls")),
-    path("api/subq/", include("subq.urls")),
+    path("api/openapi/", include(openapi_urls), name="openapi"),
+    path("api/account/", include('allauth.urls'), name="account"),
+    path("api/account/auth/", include(auth_urlpatterns), name="account-auth"),
+    path("api/users/", include(user_urlpatterns), name="users"),
+    path("api/questions/", include("questions.urls"), name="questions"),
+    path("api/subq/", include("subq.urls"), name="subq"),
 
     path("", include("core.urls"), name="core"),
     path("jsreverse/", django_js_reverse.views.urls_js, name="js_reverse"),
