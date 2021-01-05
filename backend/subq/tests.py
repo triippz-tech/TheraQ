@@ -5,8 +5,8 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 from subq.models import SubQ, SubQFollower
+from subq.serializers import CreateSubQFollowerSerializer, IdSubQSerializer
 from accounts.serializers import IdUserSerializer
-
 
 User = get_user_model()
 
@@ -190,5 +190,64 @@ class TestSubQFollowerViewSet(APITestCase):
     def setUp(self):
         self.test_user, self.normal_client = create_normal_client()
         self.super_user, self.super_client = create_super_client()
+        self.user1 = create_user(username="user1", email="user1@user.com", password="user1pass")
+        self.user2 = create_user(username="user2", email="user2@user.com", password="user2pass")
+        self.user3 = create_user(username="user3", email="user3@user.com", password="user3pass")
+        self.subq1 = create_subq(sub_name="sub1", description="SUB 1 Decsription", owner=self.test_user)
+        self.subq4 = create_subq(sub_name="subq4", description="SUB 4 Decsription", owner=self.user3)
+        self.follower_test = create_subq_follower(subq=self.subq4, follower=self.test_user)
+        self.follower1 = create_subq_follower(subq=self.subq1, follower=self.user1)
+        self.follower2 = create_subq_follower(subq=self.subq1, follower=self.user2)
 
+    def test_create(self):
+        res = self.normal_client.post("/api/subqs/subqfollower/", json.dumps({
+            "subq": {
+                "id": self.subq4.pk,
+            },
+        }),  content_type='application/json')
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data.get("subq")["id"], self.subq4.pk)
+        self.assertEqual(res.data.get("follower")["id"], self.test_user.pk)
 
+    def test_update(self):
+        payload = {
+            "notifications_enabled": False,
+        }
+        res = self.normal_client.patch(f"/api/subqs/subqfollower/{self.follower_test.pk}/", payload)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertFalse(res.data["notifications_enabled"])
+
+    def test_list(self):
+        res = self.normal_client.get("/api/subqs/subqfollower/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(SubQFollower.objects.all().count(), len(res.data["results"]))
+
+    def test_list_filter(self):
+        res = self.normal_client.get(f"/api/subqs/subqfollower/?follower__email={self.user1.email}")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(SubQFollower.objects.filter(follower__email=self.user1.email).count(),
+                         len(res.data["results"]))
+
+        res = self.normal_client.get(f"/api/subqs/subqfollower/?subq__sub_name={self.subq1.sub_name}")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(SubQFollower.objects.filter(subq__sub_name=self.subq1.sub_name).count(),
+                         len(res.data["results"]))
+
+        res = self.normal_client.get(f"/api/subqs/subqfollower/?is_banned=False")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(SubQFollower.objects.filter(is_banned=False).count(),
+                         len(res.data["results"]))
+
+    def test_retrieve(self):
+        res = self.normal_client.get(f"/api/subqs/subqfollower/{self.follower1.pk}/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(self.follower1.id, res.data["id"])
+
+    def test_delete(self):
+        res = self.normal_client.delete(f"/api/subqs/subqfollower/{self.follower1.pk}/")
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        res = self.normal_client.delete(f"/api/subqs/subqfollower/{self.follower_test.pk}/")
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        subqf_refreshed = SubQFollower.objects.get(pk=self.follower_test.pk)
+        self.assertTrue(subqf_refreshed.status)

@@ -7,17 +7,14 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-from core.error_codes import UNAUTHORIZED_ERR_401, BAD_REQUEST_ERR_400
 from core.renderers import TheraQJsonRenderer
 from core.serializers import EmptySerializer
-from subq.exceptions import SubQException, SubQFollowerException
 from subq.serializers import (
     SubQFollowerSerializer,
     ViewSubQSerializer,
     CreateSubQSerializer,
     ViewSubQFollowerSerializer,
     CreateSubQFollowerSerializer,
-    UpdateSubQFollowerSerializer,
     ListSubQSerializer
 )
 from accounts.serializers import IdUserSerializer
@@ -82,13 +79,12 @@ class SubQViewSet(ModelViewSet):
         except KeyError:
             item = get_object_or_404(SubQ, pk=kwargs["pk"])
         if item.owner.pk != request.user.pk and not request.user.is_superuser:
-            raise SubQException(theraq_err=UNAUTHORIZED_ERR_401, default_code="update_sub_err")
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
         serializer = ViewSubQSerializer(item, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
-        raise SubQException(status_code=400, detail="Error encountered while updating Sub.",
-                            default_code="update_sub_err")
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @swagger_auto_schema(
         responses={
@@ -279,21 +275,15 @@ class SubQFollowerViewSet(ModelViewSet):
     renderer_classes = (TheraQJsonRenderer,)
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ["id", "status", "created_date", "updated_date", "is_moderator", "notifications_enabled",
-                        "is_banned"]
-    search_fields = ["sub_name", "slug", "description", "subq__sub_name", "owner__email", "owner__username"]
+                        "is_banned", "subq__sub_name", "subq__slug", "follower__email",
+                        "follower__username"]
+    search_fields = ["subq__sub_name", "subq__slug", "subq__description", "subq__sub_name", "follower__email", "follower__username"]
     serializer_class = ViewSubQFollowerSerializer
 
     def get_serializer_class(self):
         if self.action == "create":
             return CreateSubQFollowerSerializer
-        if self.action == "update" or self.action == "partial_update":
-            return UpdateSubQFollowerSerializer
         return ViewSubQFollowerSerializer
-
-    def list(self, request, *args, **kwargs):
-        queryset = SubQFollower.objects.order_by('subq__sub_name')
-        serializer = ViewSubQFollowerSerializer(queryset, many=True)
-        return Response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
         queryset = SubQFollower.objects.all()
@@ -304,15 +294,15 @@ class SubQFollowerViewSet(ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = CreateSubQFollowerSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(owner=request.user)
+            serializer.save(follower=request.user)
             return Response(serializer.data, status=201)
-        raise SubQFollowerException(theraq_err=BAD_REQUEST_ERR_400, default_code="delete_follower_err")
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
         item = get_object_or_404(SubQFollower, pk=kwargs["pk"])
         if item.follower.pk != request.user.pk and not request.user.is_superuser:
-            raise SubQFollowerException(theraq_err=UNAUTHORIZED_ERR_401, default_code="update_follower_err")
-        serializer = UpdateSubQFollowerSerializer(item, data=request.data)
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        serializer = ViewSubQFollowerSerializer(item, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
@@ -321,6 +311,6 @@ class SubQFollowerViewSet(ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         item = get_object_or_404(SubQFollower, pk=kwargs["pk"])
         if item.follower.pk != request.user.pk and not request.user.is_superuser:
-            raise SubQFollowerException(theraq_err=UNAUTHORIZED_ERR_401, default_code="delete_follower_err")
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
         item.archive()
         return Response(status=204)

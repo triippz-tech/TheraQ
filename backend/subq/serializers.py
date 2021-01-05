@@ -103,30 +103,35 @@ class ViewSubQSerializer(DynamicFieldsModelSerializer):
 
 
 class CreateSubQFollowerSerializer(serializers.ModelSerializer):
-    subq = IdSubQSerializer(required=True)
+    subq = IdSubQSerializer(required=True, allow_null=False)
+    follower = IdUserSerializer(required=False)
+    notifications_enabled = serializers.BooleanField(required=False, allow_null=False, default=True)
+    is_moderator = serializers.BooleanField(required=False, allow_null=False, default=False)
+    is_banned = serializers.BooleanField(required=False, allow_null=False, default=False)
 
     class Meta:
         model = SubQFollower
-        fields = ("id", "notifications_enabled", "subq")
-        read_only_fields = ("id", "created_date", "status", "updated_date",)
-        optional = ("notifications_enabled",)
+        fields = ("id", "notifications_enabled", "subq", "is_moderator", "follower", "is_banned")
+        read_only_fields = ("id", "created_date", "status", "updated_date", "ban_date")
+        optional = ("notifications_enabled", "follower")
 
-
-class UpdateSubQFollowerSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = SubQFollower
-        fields = ("id", "notifications_enabled", "status")
-        read_only_fields = ("id", )
+    def create(self, validated_data):
+        subq_data = validated_data.pop("subq")
+        subq = SubQ.objects.get(**subq_data)
+        return SubQFollower.objects.create(subq=subq, **validated_data)
 
 
 class ViewSubQFollowerSerializer(DynamicFieldsModelSerializer):
-    follower = IdSubQFollowerSerializer(many=True, allow_null=True)
+    follower = IdUserSerializer(required=False, many=False, allow_null=True)
+    subq = IdSubQSerializer(required=False, allow_null=False)
+    notifications_enabled = serializers.BooleanField(required=False, allow_null=False, default=True)
+    is_moderator = serializers.BooleanField(required=False, allow_null=False, default=False)
+    is_banned = serializers.BooleanField(required=False, allow_null=False, default=False)
 
     class Meta:
         model = SubQFollower
         fields = ("id", "is_moderator", "join_date", "notifications_enabled", "follower", "subq", "is_banned")
-        read_only_fields = ("id", "is_moderator", "join_date", "notifications_enabled", "follower", "subq", "is_banned")
+        read_only_fields = ("id", "is_moderator", "join_date", "follower", "subq", "is_banned")
 
 
 class SubQUserSerializer(serializers.Serializer):
