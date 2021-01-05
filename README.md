@@ -1,6 +1,9 @@
 
 # TheraQ
 
+[![Build Status](https://circleci.com/github/triippz-tech/TheraQ.svg?style=svg)](https://app.circleci.com/pipelines/github/triippz-tech/TheraQ)
+
+
 ## IN DEVELOPMENT
 --
 Please note, this is in development, and migrations may be add/removed until the
