@@ -1,7 +1,5 @@
 from django.conf import settings
 from django.db import models
-
-
 # Create your models here.
 from django.utils.text import slugify
 
@@ -17,19 +15,18 @@ class Question(BaseAppModel):
         settings.AUTH_USER_MODEL,
         models.DO_NOTHING,
         blank=True,
-        null=True,
-        related_name="asked_questions")
+        null=False,
+        related_name="asked_questions",
+    )
     subq = models.ForeignKey(
-        SubQ,
-        models.DO_NOTHING,
-        blank=True,
-        null=True,
-        related_name="subq_questions")
+        SubQ, models.DO_NOTHING, blank=True, null=False, related_name="subq_questions"
+    )
 
     class Meta:
-        db_table = 'question'
+        db_table = "question"
         verbose_name = "Question"
 
+    # pylint: disable=signature-differs
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.post_title)
@@ -43,50 +40,40 @@ class Question(BaseAppModel):
 class QuestionWatchers(BaseAppModel):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
+        null=False,
+        blank=True,
         on_delete=models.CASCADE,
-        related_name="watched_questions")
+        related_name="watched_questions",
+    )
     question = models.ForeignKey(
-        Question,
-        on_delete=models.CASCADE,
-        related_name="watchers")
+        Question, null=False, blank=True, on_delete=models.CASCADE, related_name="watchers"
+    )
 
     class Meta:
-        db_table = 'question_watchers'
+        db_table = "question_watchers"
         verbose_name = "Question Watcher"
 
 
 class QuestionViews(models.Model):
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="viewed_questions")
-    question = models.ForeignKey(
-        Question,
-        on_delete=models.CASCADE,
-        related_name="question_views")
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="viewed_questions"
+    )
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="question_views")
 
     class Meta:
-        db_table = 'question_views'
+        db_table = "question_views"
         verbose_name = "Question View"
 
 
 class QTag(BaseAppModel):
-    tag_name = models.CharField(
-        max_length=50,
-        unique=True,
-        null=False,
-        blank=True,
-        db_index=True)
-    slug = models.CharField(
-        max_length=80,
-        unique=True,
-        null=False,
-        blank=True)
+    tag_name = models.CharField(max_length=50, unique=True, null=False, blank=True, db_index=True)
+    slug = models.CharField(max_length=80, unique=True, null=False, blank=True)
 
     class Meta:
-        db_table = 'q_tag'
+        db_table = "q_tag"
         verbose_name = "Question Tag"
 
+    # pylint: disable=signature-differs
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.tag_name)
@@ -94,19 +81,12 @@ class QTag(BaseAppModel):
 
 
 class QuestionQtag(BaseAppModel):
-    qtag = models.ForeignKey(
-        QTag,
-        models.DO_NOTHING,
-        null=False,
-        related_name="question_tags")
-    question = models.ForeignKey(
-        Question,
-        models.DO_NOTHING,
-        related_name="question_tags")
+    qtag = models.ForeignKey(QTag, models.DO_NOTHING, null=False, related_name="question_tags")
+    question = models.ForeignKey(Question, models.DO_NOTHING, related_name="question_tags")
 
     class Meta:
-        db_table = 'question_qtag'
-        unique_together = (('question', 'qtag'),)
+        db_table = "question_qtag"
+        unique_together = (("question", "qtag"),)
         verbose_name = "Question QTags (Joined)"
 
 
@@ -117,16 +97,14 @@ class Reply(BaseAppModel):
         models.DO_NOTHING,
         blank=True,
         null=True,
-        related_name="question_replies")
+        related_name="question_replies",
+    )
     question = models.ForeignKey(
-        Question,
-        models.DO_NOTHING,
-        blank=True,
-        null=True,
-        related_name="question_replies")
+        Question, models.DO_NOTHING, blank=True, null=True, related_name="question_replies"
+    )
 
     class Meta:
-        db_table = 'reply'
+        db_table = "reply"
         verbose_name = "Reply"
 
     def archive(self):
@@ -137,26 +115,17 @@ class Reply(BaseAppModel):
 class Comment(BaseAppModel):
     comment_body = models.TextField(blank=True, null=True)
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        models.DO_NOTHING,
-        blank=True,
-        null=True,
-        related_name="comments")
+        settings.AUTH_USER_MODEL, models.DO_NOTHING, blank=True, null=True, related_name="comments"
+    )
     question = models.ForeignKey(
-        Question,
-        models.DO_NOTHING,
-        blank=True,
-        null=True,
-        related_name="question_comments")
+        Question, models.DO_NOTHING, blank=True, null=True, related_name="question_comments"
+    )
     reply = models.ForeignKey(
-        Reply,
-        models.DO_NOTHING,
-        blank=True,
-        null=True,
-        related_name="reply_comments")
+        Reply, models.DO_NOTHING, blank=True, null=True, related_name="reply_comments"
+    )
 
     class Meta:
-        db_table = 'comment'
+        db_table = "comment"
         verbose_name = "Comment"
 
     def archive(self):
@@ -166,59 +135,53 @@ class Comment(BaseAppModel):
 
 class CommentVote(BaseVoteModel):
     comment = models.ForeignKey(
-        Comment,
-        models.DO_NOTHING,
-        blank=True,
-        null=False,
-        related_name="comment_votes")
+        Comment, models.DO_NOTHING, blank=True, null=False, related_name="comment_votes"
+    )
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         models.DO_NOTHING,
         blank=True,
         null=True,
-        related_name="comment_votes")
+        related_name="comment_votes",
+    )
 
     class Meta:
-        db_table = 'comment_vote'
+        db_table = "comment_vote"
         verbose_name = "Comment Vote"
 
 
 class QuestionVote(BaseVoteModel):
     question = models.ForeignKey(
-        Question,
-        models.DO_NOTHING,
-        blank=True,
-        null=False,
-        related_name="question_votes")
+        Question, models.DO_NOTHING, blank=True, null=False, related_name="question_votes"
+    )
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         models.DO_NOTHING,
         blank=True,
         null=True,
-        related_name="question_votes")
+        related_name="question_votes",
+    )
 
     class Meta:
-        db_table = 'question_vote'
+        db_table = "question_vote"
         verbose_name = "Question Vote"
 
 
 class ReplyVote(BaseVoteModel):
     reply = models.ForeignKey(
-        Reply,
-        models.DO_NOTHING,
-        blank=True,
-        null=False,
-        related_name="reply_votes")
+        Reply, models.DO_NOTHING, blank=True, null=False, related_name="reply_votes"
+    )
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         models.DO_NOTHING,
         blank=True,
         null=True,
-        related_name="reply_votes")
+        related_name="reply_votes",
+    )
 
     class Meta:
-        db_table = 'reply_vote'
+        db_table = "reply_vote"
         verbose_name = "Reply Vote"

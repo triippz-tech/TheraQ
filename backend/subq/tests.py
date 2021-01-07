@@ -1,12 +1,13 @@
 import json
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
-from subq.models import SubQ, SubQFollower
-from subq.serializers import CreateSubQFollowerSerializer, IdSubQSerializer
+
 from accounts.serializers import IdUserSerializer
+from subq.models import SubQ, SubQFollower
+
 
 User = get_user_model()
 
@@ -19,9 +20,7 @@ def create_user(**params):
 
 def create_normal_client():
     test_user = User.objects.create_user(
-        username="test_user",
-        password="testing",
-        email="tester@tester.com"
+        username="test_user", password="testing", email="tester@tester.com"
     )
     client = APIClient()
     client.force_authenticate(user=test_user)
@@ -30,9 +29,7 @@ def create_normal_client():
 
 def create_super_client():
     super_user = User.objects.create_superuser(
-        username="super_user",
-        password="super_user_pass",
-        email="super_user@tester.com"
+        username="super_user", password="super_user_pass", email="super_user@tester.com"
     )
     client = APIClient()
     client.force_authenticate(user=super_user)
@@ -47,6 +44,7 @@ def create_subq_follower(**params):
     return SubQFollower.objects.create(**params)
 
 
+# pylint: disable=too-many-instance-attributes
 class TestSubQViewSet(APITestCase):
     def setUp(self):
         self.test_user, self.normal_client = create_normal_client()
@@ -56,10 +54,18 @@ class TestSubQViewSet(APITestCase):
         self.user3 = create_user(username="user3", email="user3@user.com", password="user3pass")
         self.owner1 = create_user(username="owner1", email="owner1@user.com", password="owner1pass")
         self.owner2 = create_user(username="owner2", email="owner2@user.com", password="owner2pass")
-        self.subq1 = create_subq(sub_name="sub1", description="SUB 1 Decsription", owner=self.owner1)
-        self.subq2 = create_subq(sub_name="subq2", description="SUB 2 Decsription", owner=self.owner1)
-        self.subq3 = create_subq(sub_name="subq3", description="SUB 3 Decsription", owner=self.test_user)
-        self.subq4 = create_subq(sub_name="subq4", description="SUB 4 Decsription", owner=self.test_user)
+        self.subq1 = create_subq(
+            sub_name="sub1", description="SUB 1 Decsription", owner=self.owner1
+        )
+        self.subq2 = create_subq(
+            sub_name="subq2", description="SUB 2 Decsription", owner=self.owner1
+        )
+        self.subq3 = create_subq(
+            sub_name="subq3", description="SUB 3 Decsription", owner=self.test_user
+        )
+        self.subq4 = create_subq(
+            sub_name="subq4", description="SUB 4 Decsription", owner=self.test_user
+        )
 
     def test_create(self):
         payload = {
@@ -74,9 +80,11 @@ class TestSubQViewSet(APITestCase):
         self.assertEqual(res.data.get("owner")["id"], self.test_user.pk)
 
     def test_update_by_id(self):
-        new_subq = create_subq(sub_name="Pennsylvania State University",
-                               description="Some Boring Stuff",
-                               owner=self.test_user)
+        new_subq = create_subq(
+            sub_name="Pennsylvania State University",
+            description="Some Boring Stuff",
+            owner=self.test_user,
+        )
         payload = {
             "description": "Some different boring stuff",
         }
@@ -87,9 +95,11 @@ class TestSubQViewSet(APITestCase):
         self.assertEqual(res.data["slug"], new_subq.slug)
 
     def test_update_by_slug(self):
-        new_subq = create_subq(sub_name="Pennsylvania State University",
-                               description="Some Boring Stuff",
-                               owner=self.test_user)
+        new_subq = create_subq(
+            sub_name="Pennsylvania State University",
+            description="Some Boring Stuff",
+            owner=self.test_user,
+        )
         payload = {
             "description": "Some different boring stuff",
         }
@@ -107,18 +117,21 @@ class TestSubQViewSet(APITestCase):
     def test_list_filter(self):
         res = self.normal_client.get(f"/api/subqs/subq/?owner__email={self.test_user.email}")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(SubQ.objects.filter(owner__email=self.test_user.email).count(),
-                         len(res.data["results"]))
+        self.assertEqual(
+            SubQ.objects.filter(owner__email=self.test_user.email).count(), len(res.data["results"])
+        )
 
         res = self.normal_client.get(f"/api/subqs/subq/?sub_name={self.subq1.sub_name}")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(SubQ.objects.filter(sub_name=self.subq1.sub_name).count(),
-                         len(res.data["results"]))
+        self.assertEqual(
+            SubQ.objects.filter(sub_name=self.subq1.sub_name).count(), len(res.data["results"])
+        )
 
         res = self.normal_client.get(f"/api/subqs/subq/?slug={self.subq2.slug}")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(SubQ.objects.filter(slug=self.subq2.slug).count(),
-                         len(res.data["results"]))
+        self.assertEqual(
+            SubQ.objects.filter(slug=self.subq2.slug).count(), len(res.data["results"])
+        )
 
     def test_retrieve_by_pk(self):
         res = self.normal_client.get(f"/api/subqs/subq/{self.subq3.pk}/")
@@ -142,7 +155,9 @@ class TestSubQViewSet(APITestCase):
     def test_add_moderator(self):
         follower = create_subq_follower(follower=self.user1, subq=self.subq3)
         serializer = IdUserSerializer(self.user1)
-        res = self.normal_client.post(f"/api/subqs/subq/{self.subq3.pk}/add_moderator/", serializer.data)
+        res = self.normal_client.post(
+            f"/api/subqs/subq/{self.subq3.pk}/add_moderator/", serializer.data
+        )
         self.assertEqual(res.status_code, status.HTTP_200_OK)
 
         refreshed_follower = SubQFollower.objects.get(pk=follower.pk)
@@ -151,7 +166,9 @@ class TestSubQViewSet(APITestCase):
     def test_remove_moderator(self):
         follower = create_subq_follower(follower=self.user1, subq=self.subq3, is_moderator=True)
         serializer = IdUserSerializer(self.user1)
-        res = self.normal_client.post(f"/api/subqs/subq/{self.subq3.pk}/remove_moderator/", serializer.data)
+        res = self.normal_client.post(
+            f"/api/subqs/subq/{self.subq3.pk}/remove_moderator/", serializer.data
+        )
         self.assertEqual(res.status_code, status.HTTP_200_OK)
 
         refreshed_follower = SubQFollower.objects.get(pk=follower.pk)
@@ -186,6 +203,7 @@ class TestSubQViewSet(APITestCase):
         self.assertTrue(refreshed_follower.notifications_enabled)
 
 
+# pylint: disable=too-many-instance-attributes
 class TestSubQFollowerViewSet(APITestCase):
     def setUp(self):
         self.test_user, self.normal_client = create_normal_client()
@@ -193,18 +211,28 @@ class TestSubQFollowerViewSet(APITestCase):
         self.user1 = create_user(username="user1", email="user1@user.com", password="user1pass")
         self.user2 = create_user(username="user2", email="user2@user.com", password="user2pass")
         self.user3 = create_user(username="user3", email="user3@user.com", password="user3pass")
-        self.subq1 = create_subq(sub_name="sub1", description="SUB 1 Decsription", owner=self.test_user)
-        self.subq4 = create_subq(sub_name="subq4", description="SUB 4 Decsription", owner=self.user3)
+        self.subq1 = create_subq(
+            sub_name="sub1", description="SUB 1 Decsription", owner=self.test_user
+        )
+        self.subq4 = create_subq(
+            sub_name="subq4", description="SUB 4 Decsription", owner=self.user3
+        )
         self.follower_test = create_subq_follower(subq=self.subq4, follower=self.test_user)
         self.follower1 = create_subq_follower(subq=self.subq1, follower=self.user1)
         self.follower2 = create_subq_follower(subq=self.subq1, follower=self.user2)
 
     def test_create(self):
-        res = self.normal_client.post("/api/subqs/subqfollower/", json.dumps({
-            "subq": {
-                "id": self.subq4.pk,
-            },
-        }),  content_type='application/json')
+        res = self.normal_client.post(
+            "/api/subqs/subqfollower/",
+            json.dumps(
+                {
+                    "subq": {
+                        "id": self.subq4.pk,
+                    },
+                }
+            ),
+            content_type="application/json",
+        )
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertEqual(res.data.get("subq")["id"], self.subq4.pk)
         self.assertEqual(res.data.get("follower")["id"], self.test_user.pk)
@@ -225,18 +253,25 @@ class TestSubQFollowerViewSet(APITestCase):
     def test_list_filter(self):
         res = self.normal_client.get(f"/api/subqs/subqfollower/?follower__email={self.user1.email}")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(SubQFollower.objects.filter(follower__email=self.user1.email).count(),
-                         len(res.data["results"]))
+        self.assertEqual(
+            SubQFollower.objects.filter(follower__email=self.user1.email).count(),
+            len(res.data["results"]),
+        )
 
-        res = self.normal_client.get(f"/api/subqs/subqfollower/?subq__sub_name={self.subq1.sub_name}")
+        res = self.normal_client.get(
+            f"/api/subqs/subqfollower/?subq__sub_name={self.subq1.sub_name}"
+        )
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(SubQFollower.objects.filter(subq__sub_name=self.subq1.sub_name).count(),
-                         len(res.data["results"]))
+        self.assertEqual(
+            SubQFollower.objects.filter(subq__sub_name=self.subq1.sub_name).count(),
+            len(res.data["results"]),
+        )
 
-        res = self.normal_client.get(f"/api/subqs/subqfollower/?is_banned=False")
+        res = self.normal_client.get("/api/subqs/subqfollower/?is_banned=False")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(SubQFollower.objects.filter(is_banned=False).count(),
-                         len(res.data["results"]))
+        self.assertEqual(
+            SubQFollower.objects.filter(is_banned=False).count(), len(res.data["results"])
+        )
 
     def test_retrieve(self):
         res = self.normal_client.get(f"/api/subqs/subqfollower/{self.follower1.pk}/")
