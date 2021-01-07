@@ -1,10 +1,9 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase  # noqa
 from rest_framework import status
-from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase, APIClient
 
-from accounts.models import UserProfile, UserCertification, UserEmployer, UserLicense, UserSchool
+from accounts.models import UserCertification, UserEmployer, UserLicense, UserSchool
 
 User = get_user_model()
 

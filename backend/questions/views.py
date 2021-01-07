@@ -36,8 +36,6 @@ from questions.serializers import (
     QuestionWatchersSerializer,
     ReplyCommentSerializer,
     ReplyVoteSerializer,
-    UpdateQuestionCommentSerializer,
-    UpdateReplyCommentSerializer,
     ViewQuestionSerializer,
     ViewReplySerializer,
 )
@@ -278,6 +276,8 @@ class ReplyViewSet(ModelViewSet):
     def update(self, request, *args, **kwargs):
         item = get_object_or_404(Reply, pk=kwargs["id"])
         serializer = ViewReplySerializer(item, data=request.data)
+        if item.user.pk != request.user.pk and not request.user.is_superuser:
+            return Response(status=401)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -285,6 +285,8 @@ class ReplyViewSet(ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         item = get_object_or_404(Reply, pk=kwargs["id"])
+        if item.user.pk != request.user.pk and not request.user.is_superuser:
+            return Response(status=401)
         item.archive()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -324,7 +326,13 @@ class QuestionCommentViewSet(ModelViewSet):
     renderer_classes = (TheraQJsonRenderer,)
     lookup_field = "id"
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ["id", "comment_body", "status"]
+    filterset_fields = [
+        "id",
+        "user__username",
+        "user__email",
+        "question__slug",
+        "question__post_title",
+        "status"]
     search_fields = [
         "id",
         "comment_body",
@@ -339,8 +347,6 @@ class QuestionCommentViewSet(ModelViewSet):
     def get_serializer_class(self):
         if self.action == "create":
             return CreateQuestionCommentSerializer
-        if self.action == "update" or self.action == "partial_update":
-            return UpdateQuestionCommentSerializer
         if self.action == "add_vote":
             return CreateCommentVoteSerializer
         if self.action == "remove_vote":
@@ -350,26 +356,30 @@ class QuestionCommentViewSet(ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = CreateQuestionCommentSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(user=request.user)
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
 
     def update(self, request, *args, **kwargs):
-        item = get_object_or_404(Comment, pk=kwargs["pk"])
-        serializer = UpdateQuestionCommentSerializer(item, data=request.data)
+        item = get_object_or_404(Comment, pk=kwargs["id"])
+        if item.user.pk != request.user.pk and not request.user.is_superuser:
+            return Response(status=401)
+        serializer = QuestionCommentSerializer(item, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(status=200, data=serializer.data)
         return Response(serializer.errors, status=400)
 
     def destroy(self, request, *args, **kwargs):
-        item = get_object_or_404(Comment, pk=kwargs["pk"])
+        item = get_object_or_404(Comment, pk=kwargs["id"])
+        if item.user.pk != request.user.pk and not request.user.is_superuser:
+            return Response(status=401)
         item.archive()
         return Response(status=204)
 
     @action(methods=["POST"], detail=True, name="Add/Update A Vote", url_name="add_vote")
     def add_vote(self, request, *args, **kwargs):
-        comment: Comment = get_object_or_404(Comment, pk=kwargs["pk"])
+        comment: Comment = get_object_or_404(Comment, pk=kwargs["id"])
         serializer = CreateCommentVoteSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(user=request.user, comment=comment)
@@ -378,7 +388,7 @@ class QuestionCommentViewSet(ModelViewSet):
 
     @action(methods=["POST"], detail=True, name="Remove A Vote", url_name="remove_vote")
     def remove_vote(self, request, *args, **kwargs):
-        comment: Comment = get_object_or_404(Comment, pk=kwargs["pk"])
+        comment: Comment = get_object_or_404(Comment, pk=kwargs["id"])
         try:
             comment_vote = CommentVote.objects.get(user=request.user, comment=comment)
             comment_vote.delete()
@@ -393,7 +403,14 @@ class ReplyCommentViewSet(ModelViewSet):
     renderer_classes = (TheraQJsonRenderer,)
     lookup_field = "id"
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ["id", "comment_body", "status"]
+    filterset_fields = [
+        "id",
+        "comment_body",
+        "status",
+        "user__username",
+        "user__email",
+        "question__slug",
+        "question__post_title"]
     search_fields = [
         "id",
         "comment_body",
@@ -408,8 +425,6 @@ class ReplyCommentViewSet(ModelViewSet):
     def get_serializer_class(self):
         if self.action == "create":
             return CreateReplyCommentSerializer
-        if self.action == "update" or self.action == "partial_update":
-            return UpdateReplyCommentSerializer
         if self.action == "add_vote":
             return CreateCommentVoteSerializer
         if self.action == "remove_vote":
@@ -419,26 +434,28 @@ class ReplyCommentViewSet(ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = CreateReplyCommentSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400)
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
-        item = get_object_or_404(Comment, pk=kwargs["pk"])
-        serializer = UpdateReplyCommentSerializer(item, data=request.data)
+        item = get_object_or_404(Comment, pk=kwargs["id"])
+        if item.user.pk != request.user.pk and not request.user.is_superuser:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        serializer = ReplyCommentSerializer(item, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(status=200, data=serializer.data)
-        return Response(serializer.errors, status=400)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, *args, **kwargs):
-        item = get_object_or_404(Comment, pk=kwargs["pk"])
+        item = get_object_or_404(Comment, pk=kwargs["id"])
         item.archive()
         return Response(status=204)
 
     @action(methods=["POST"], detail=True, name="Add/Update A Vote", url_name="add_vote")
     def add_vote(self, request, *args, **kwargs):
-        comment: Comment = get_object_or_404(Comment, pk=kwargs["pk"])
+        comment: Comment = get_object_or_404(Comment, pk=kwargs["id"])
         serializer = CreateCommentVoteSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(user=request.user, comment=comment)
@@ -447,7 +464,7 @@ class ReplyCommentViewSet(ModelViewSet):
 
     @action(methods=["POST"], detail=True, name="Remove A Vote", url_name="remove_vote")
     def remove_vote(self, request, *args, **kwargs):
-        comment: Comment = get_object_or_404(Comment, pk=kwargs["pk"])
+        comment: Comment = get_object_or_404(Comment, pk=kwargs["id"])
         comment_vote = get_object_or_404(CommentVote, user=request.user, comment=comment)
         comment_vote.delete()
         return Response(status=204)

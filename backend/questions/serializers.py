@@ -40,10 +40,25 @@ class IdReplySerializer(serializers.Serializer):
     question = IdQuestionSerializer(required=False, allow_null=True)
 
 
+class IdCommentSerializer(serializers.Serializer):
+    id = serializers.IntegerField(required=True)
+    user = IdUserSerializer(required=False, allow_null=False)
+    question = IdQuestionSerializer(required=False, allow_null=True)
+    reply = IdReplySerializer(required=False, allow_null=True)
+
+
+class IdQTagSerializer(serializers.Serializer):
+    id = serializers.IntegerField(required=True)
+
+
 class CreateCommentVoteSerializer(BaseVoteSerializer):
+    vote_type = ChoicesField(choices=VOTE_TYPES)
+    user = IdUserSerializer(required=False, allow_null=False)
+    comment = IdCommentSerializer(required=False, allow_null=False)
+
     class Meta:
-        model = Comment
-        fields = ("vote_type",)
+        model = CommentVote
+        fields = ("vote_type", "user", "comment")
 
 
 class CommentVoteSerializer(BaseVoteSerializer):
@@ -133,20 +148,19 @@ class CreateQuestionCommentSerializer(serializers.ModelSerializer):
         fields = ("id", "comment_body", "user", "question")
         read_only_fields = ("id",)
 
-
-class UpdateQuestionCommentSerializer(serializers.ModelSerializer):
-    comment_body = serializers.CharField(required=True)
-
-    class Meta:
-        model = Comment
-        fields = ("id", "comment_body")
-        read_only_fields = ("id",)
+    def create(self, validated_data):
+        if not isinstance(validated_data.get("question"), Question):
+            question_data = validated_data.pop("question")
+            question = Question.objects.get(**question_data)
+            return Comment.objects.create(question=question, **validated_data)
+        return Comment.objects.create(**validated_data)
 
 
 class QuestionCommentSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=False, required=False, allow_null=True)
+    comment_body = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    user = UserSerializer(read_only=False, required=False, allow_null=False)
     comment_votes = CommentVoteSerializer(
-        read_only=False, required=False, allow_null=True, many=True
+        read_only=False, required=False, allow_null=False, many=True
     )
 
     class Meta:
@@ -174,17 +188,16 @@ class CreateReplyCommentSerializer(serializers.ModelSerializer):
         fields = ("comment_body", "user", "reply")
         optional_fields = ("user", "reply")
 
-
-class UpdateReplyCommentSerializer(serializers.ModelSerializer):
-    comment_body = serializers.CharField(required=True)
-
-    class Meta:
-        model = Comment
-        fields = ("id", "comment_body")
-        read_only_fields = ("id",)
+    def create(self, validated_data):
+        if not isinstance(validated_data.get("reply"), Reply):
+            reply_data = validated_data.pop("reply")
+            reply = Reply.objects.get(**reply_data)
+            return Comment.objects.create(reply=reply, **validated_data)
+        return Comment.objects.create(**validated_data)
 
 
 class ReplyCommentSerializer(serializers.ModelSerializer):
+    comment_body = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     user = UserSerializer(read_only=False, required=False, allow_null=True)
     comment_votes = CommentVoteSerializer(
         read_only=False, required=False, allow_null=True, many=True
@@ -271,6 +284,9 @@ class CreateQTagSerializer(serializers.ModelSerializer):
 
 
 class QTagSerializer(serializers.ModelSerializer):
+    tag_name = serializers.CharField(required=False, allow_null=False, read_only=True)
+    slug = serializers.CharField(required=False, allow_null=False, read_only=True)
+
     class Meta:
         model = QTag
         fields = ("id", "tag_name", "slug")
@@ -380,17 +396,34 @@ class CreateQuestionSerializer(serializers.ModelSerializer):
     post_body = serializers.CharField(
         required=True, min_length=50, allow_null=False, allow_blank=True
     )
+    qtags = IdQTagSerializer(many=True, required=False, allow_null=True)
+    question_tags = serializers.SerializerMethodField(required=False, allow_null=True)
 
     class Meta:
         model = Question
-        fields = ("id", "author", "subq", "slug", "post_title", "post_body")
+        fields = ("id", "author", "subq", "slug", "post_title", "post_body", "qtags", "question_tags")
         read_only_fields = ("id", "created_date", "updated_date", "status")
-        optional_fields = ("id", "slug", "author")
+        optional_fields = ("id", "slug", "author", "qtags", "question_tags")
+
+    def get_question_tags(self, question):
+        qtags = QTag.objects.filter(question_tags__question=question)
+        serializer = QTagSerializer(qtags, many=True)
+        return serializer.data
 
     def create(self, validated_data):
         subq_data = validated_data.pop("subq")
         subq = SubQ.objects.get(**subq_data)
-        return Question.objects.create(subq=subq, **validated_data)
+
+        qtag_data = validated_data.pop("qtags")
+
+        question = Question.objects.create(subq=subq, **validated_data)
+
+        for qtag in qtag_data:
+            found_qtag = QTag.objects.get(**qtag)
+            QuestionQtag.objects.create(qtag=found_qtag, question=question)
+
+        question = Question.objects.get(pk=question.pk)
+        return question
 
 
 class ViewQuestionSerializer(serializers.ModelSerializer):
@@ -423,6 +456,7 @@ class ViewQuestionSerializer(serializers.ModelSerializer):
     )
     view_count = serializers.SerializerMethodField(read_only=True)
     votes = serializers.SerializerMethodField(read_only=True)
+    qtags = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Question
@@ -439,9 +473,15 @@ class ViewQuestionSerializer(serializers.ModelSerializer):
             "post_title",
             "post_body",
             "slug",
+            "qtags"
         )
         lookup_field = "slug"
         extra_kwargs = {"url": {"lookup_field": "slug"}}
+
+    def get_qtags(self, question):
+        qtags = QTag.objects.filter(question_tags__question=question)
+        serializer = QTagSerializer(qtags, many=True)
+        return serializer.data
 
     def get_view_count(self, question):
         return question.question_views.count()

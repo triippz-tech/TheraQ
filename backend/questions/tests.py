@@ -5,9 +5,8 @@ from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
-from questions.models import QTag, Question, QuestionVote, QuestionWatchers, Reply, ReplyVote
+from questions.models import QTag, Question, QuestionVote, QuestionWatchers, Reply, ReplyVote, Comment, CommentVote
 from subq.models import SubQ
-
 
 User = get_user_model()
 
@@ -74,10 +73,16 @@ class TestQuestionViewSet(APITestCase):
         )
 
     def test_create(self):
+        tag1 = QTag.objects.create(tag_name="Early Intervention")
+        tag2 = QTag.objects.create(tag_name="Late Intervention")
         payload = {
             "post_title": "How do i fix this kid?",
             "post_body": "Please fix this. What do i do? Seriously, help i am soooooooo lost!",
             "subq": {"id": self.subq1.pk},
+            "qtags": [
+                {"id": tag1.pk},
+                {"id": tag2.pk}
+            ]
         }
 
         res = self.normal_client.post(
@@ -92,6 +97,7 @@ class TestQuestionViewSet(APITestCase):
         self.assertIsNotNone(res.data["slug"])
         self.assertEqual(res.data.get("author")["id"], self.test_user.pk)
         self.assertEqual(res.data.get("subq")["id"], self.subq1.pk)
+        self.assertEqual(len(res.data.get("question_tags")), 2)
 
     def test_list(self):
         res = self.normal_client.get("/api/questions/question/")
@@ -343,12 +349,151 @@ class TestReplyViewSet(APITestCase):
 
 class TestQuestionCommentViewSet(APITestCase):
     def setUp(self):
-        pass
+        self.test_user, self.normal_client = create_normal_client()
+        self.user1 = create_user(username="user1", email="user1@user.com", password="user1pass")
+        self.subq1 = create_subq(
+            sub_name="subq1", description="SUB 1 Decsription", owner=self.test_user
+        )
+        self.question1 = create_question(
+            slug="Sluggy",
+            post_title="My Title",
+            post_body="My Body",
+            author=self.test_user,
+            subq=self.subq1,
+        )
+
+    def test_create_q_comment(self):
+        payload = {
+            "comment_body": "I am here to comment on this mock comment.",
+            "question": {
+                "id": self.question1.pk
+            }
+        }
+
+        res = self.normal_client.post("/api/questions/question-comment/", json.dumps(payload),
+                                      content_type="application/json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["comment_body"], "I am here to comment on this mock comment.")
+        self.assertEqual(res.data.get("user")["id"], self.test_user.pk)
+        self.assertEqual(res.data.get("question")["id"], self.question1.pk)
+
+    def test_update_q_comment(self):
+        qcomment = Comment.objects.create(user=self.test_user, question=self.question1, comment_body="Initial Body")
+        payload = {
+            "comment_body": "Updated Body"
+        }
+        res = self.normal_client.patch(f"/api/questions/question-comment/{qcomment.pk}/", json.dumps(payload),
+                                       content_type="application/json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["comment_body"], "Updated Body")
+
+    def test_destroy_q_comment(self):
+        qcomment = Comment.objects.create(user=self.test_user, question=self.question1, comment_body="Initial Body")
+        res = self.normal_client.delete(f"/api/questions/question-comment/{qcomment.pk}/")
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        refreshed = Comment.objects.get(pk=qcomment.pk)
+        self.assertTrue(refreshed.status)
+
+    def test_add_vote_q_comment(self):
+        qcomment = Comment.objects.create(user=self.test_user, question=self.question1, comment_body="Initial Body")
+        payload = {
+            "vote_type": "DOWN_VOTE",
+            "comment": {
+                "id": qcomment.pk
+            }
+        }
+        res = self.normal_client.post(
+            f"/api/questions/question-comment/{qcomment.pk}/add_vote/",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["vote_type"], "DOWN_VOTE")
+        self.assertEqual(res.data.get("user")["id"], self.test_user.pk)
+        self.assertEqual(res.data.get("comment")["id"], qcomment.pk)
+
+    def test_remove_vote_q_comment(self):
+        qcomment = Comment.objects.create(user=self.test_user, question=self.question1, comment_body="Initial Body")
+        CommentVote.objects.create(comment=qcomment, user=self.test_user, vote_type="DOWN_VOTE")
+        res = self.normal_client.post(f"/api/questions/question-comment/{qcomment.pk}/remove_vote/")
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
 
 
 class TestReplyCommentViewSet(APITestCase):
     def setUp(self):
-        pass
+        self.test_user, self.normal_client = create_normal_client()
+        self.user1 = create_user(username="user1", email="user1@user.com", password="user1pass")
+        self.subq1 = create_subq(
+            sub_name="subq1", description="SUB 1 Decsription", owner=self.test_user
+        )
+        self.question1 = create_question(
+            slug="Sluggy",
+            post_title="My Title",
+            post_body="My Body",
+            author=self.test_user,
+            subq=self.subq1,
+        )
+
+    def test_create_reply_comment(self):
+        reply = Reply.objects.create(question=self.question1, user=self.test_user, reply_body="My Reply")
+        payload = {
+            "comment_body": "I am here to comment on this mock comment.",
+            "reply": {
+                "id": reply.pk
+            }
+        }
+
+        res = self.normal_client.post("/api/questions/reply-comment/", json.dumps(payload),
+                                      content_type="application/json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["comment_body"], "I am here to comment on this mock comment.")
+        self.assertEqual(res.data.get("user")["id"], self.test_user.pk)
+        self.assertEqual(res.data.get("reply")["id"], reply.pk)
+
+    def test_update_reply_comment(self):
+        reply = Reply.objects.create(question=self.question1, user=self.test_user, reply_body="My Reply")
+        rcomment = Comment.objects.create(user=self.test_user, reply=reply, comment_body="Initial Body")
+        payload = {
+            "comment_body": "Updated Body"
+        }
+        res = self.normal_client.patch(f"/api/questions/reply-comment/{rcomment.pk}/", json.dumps(payload),
+                                       content_type="application/json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["comment_body"], "Updated Body")
+
+    def test_delete_reply_comment(self):
+        reply = Reply.objects.create(question=self.question1, user=self.test_user, reply_body="My Reply")
+        rcomment = Comment.objects.create(user=self.test_user, reply=reply, comment_body="Initial Body")
+        res = self.normal_client.delete(f"/api/questions/reply-comment/{rcomment.pk}/")
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        refreshed = Comment.objects.get(pk=rcomment.pk)
+        self.assertTrue(refreshed.status)
+
+    def test_add_vote_reply_comment(self):
+        reply = Reply.objects.create(question=self.question1, user=self.test_user, reply_body="My Reply")
+        rcomment = Comment.objects.create(user=self.test_user, reply=reply, comment_body="Initial Body")
+        payload = {
+            "vote_type": "DOWN_VOTE",
+            "comment": {
+                "id": rcomment.pk
+            }
+        }
+        res = self.normal_client.post(
+            f"/api/questions/reply-comment/{rcomment.pk}/add_vote/",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["vote_type"], "DOWN_VOTE")
+        self.assertEqual(res.data.get("user")["id"], self.test_user.pk)
+        self.assertEqual(res.data.get("comment")["id"], rcomment.pk)
+
+    def test_remove_vote_reply_comment(self):
+        reply = Reply.objects.create(question=self.question1, user=self.test_user, reply_body="My Reply")
+        rcomment = Comment.objects.create(user=self.test_user, reply=reply, comment_body="Initial Body")
+        CommentVote.objects.create(comment=rcomment, user=self.test_user, vote_type="DOWN_VOTE")
+        res = self.normal_client.post(f"/api/questions/reply-comment/{rcomment.pk}/remove_vote/")
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
 
 
 class TestCommentVoteViewSet(APITestCase):

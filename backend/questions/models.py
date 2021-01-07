@@ -82,7 +82,7 @@ class QTag(BaseAppModel):
 
 class QuestionQtag(BaseAppModel):
     qtag = models.ForeignKey(QTag, models.DO_NOTHING, null=False, related_name="question_tags")
-    question = models.ForeignKey(Question, models.DO_NOTHING, related_name="question_tags")
+    question = models.ForeignKey(Question, models.DO_NOTHING, null=False, related_name="question_tags")
 
     class Meta:
         db_table = "question_qtag"
