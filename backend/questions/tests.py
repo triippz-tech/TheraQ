@@ -5,8 +5,18 @@ from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
-from questions.models import QTag, Question, QuestionVote, QuestionWatchers, Reply, ReplyVote, Comment, CommentVote
+from questions.models import (
+    QTag,
+    Question,
+    QuestionVote,
+    QuestionWatchers,
+    Reply,
+    ReplyVote,
+    Comment,
+    CommentVote
+)
 from subq.models import SubQ
+
 
 User = get_user_model()
 

@@ -5,6 +5,7 @@ module.exports = {
   entry: [
     // defined in local or prod
   ],
+  devtool: 'inline-source-map',
   output: {
     // defined in local or prod
   },
@@ -36,13 +37,24 @@ module.exports = {
         test: /\.(jpg|png)?$/,
         loader: ['file-loader?name=i-[hash].[ext]'],
       },
+      {
+        test: /\.ts(x?)$/,
+        use: [
+          {
+            loader: 'babel-loader',
+          },
+          {
+            loader: 'ts-loader',
+          },
+        ],
+      },
     ],
   },
   plugins: [
     // defined in local or prod
   ],
   resolve: {
-    modules: ['node_modules', 'bower_components', path.resolve(__dirname, 'frontend/js/')],
-    extensions: ['.js', '.jsx'],
+    modules: ['node_modules', 'bower_components', path.resolve(__dirname, 'frontend/src/')],
+    extensions: ['.js', '.jsx', '.tsx', '.ts'],
   },
 };
